@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" font-family="Inter, 'IBM Plex Sans', Arial, sans-serif">
+<defs>
+<marker id="mn" viewBox="0 0 12 10" refX="12" refY="5" markerWidth="12" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L12,5 L0,10 z" fill="#1F3A5F"/></marker>
+<marker id="mo" viewBox="0 0 12 10" refX="12" refY="5" markerWidth="12" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L12,5 L0,10 z" fill="#C8711F"/></marker>
+<marker id="mg" viewBox="0 0 12 10" refX="12" refY="5" markerWidth="12" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L12,5 L0,10 z" fill="#6B7280"/></marker>
+</defs>
+<rect width="1920" height="1080" fill="#fff"/>
+<text x="960" y="100" font-size="60" fill="#1F3A5F" font-weight="800" text-anchor="middle">KwèGbaTché</text>
+<text x="960" y="148" font-size="27" fill="#6B7280" font-weight="500" text-anchor="middle">L'assistant financier qui parle fon, yoruba et français</text>
+<rect x="70" y="355" width="260" height="150" rx="40" fill="#fff" stroke="#1F3A5F" stroke-width="2.5"/>
+<text x="200.0" y="404.2" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">L'utilisateur</text>
+<text x="200.0" y="437.14" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">parle</text>
+<text x="200.0" y="477.94" font-size="20" fill="#6B7280" font-weight="500" text-anchor="middle">fon · yoruba · français</text>
+<rect x="400" y="355" width="280" height="150" fill="#fff" stroke="#1F3A5F" stroke-width="2.5"/>
+<text x="540.0" y="404.2" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">Reconnaissance</text>
+<text x="540.0" y="437.14" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">vocale</text>
+<text x="540.0" y="477.94" font-size="20" fill="#6B7280" font-weight="500" text-anchor="middle">affinée sur nos langues</text>
+<rect x="750" y="355" width="280" height="150" fill="#fff" stroke="#1F3A5F" stroke-width="2.5"/>
+<text x="890.0" y="404.2" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">Compréhension</text>
+<text x="890.0" y="437.14" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">de la demande</text>
+<text x="890.0" y="477.94" font-size="20" fill="#6B7280" font-weight="500" text-anchor="middle">frais · solde · transfert</text>
+<path d="M1100,430 L1300.0,300.0 L1500,430 L1300.0,560.0 Z" fill="#FDF3E8" stroke="#C8711F" stroke-width="3"/>
+<text x="1300.0" y="408" font-size="24" fill="#C8711F" font-weight="700" text-anchor="middle">Anti-arnaque +</text>
+<text x="1300.0" y="438" font-size="24" fill="#C8711F" font-weight="700" text-anchor="middle">confirmation vocale</text>
+<text x="1300.0" y="468" font-size="20" fill="#6B7280" font-weight="600" text-anchor="middle">validée ?</text>
+<path d="M1570,345 V515 A140.0,22 0 0 0 1850,515 V345" fill="#fff" stroke="#1F3A5F" stroke-width="2.5"/>
+<ellipse cx="1710.0" cy="345" rx="140.0" ry="22" fill="#fff" stroke="#1F3A5F" stroke-width="2.5"/>
+<text x="1710.0" y="418.2" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">Portefeuille</text>
+<text x="1710.0" y="451.14" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">mobile money</text>
+<text x="1710.0" y="491.94" font-size="20" fill="#6B7280" font-weight="500" text-anchor="middle">fictif (démo)</text>
+<path d="M330,430 L400,430" fill="none" stroke="#1F3A5F" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mn)"/>
+<path d="M680,430 L750,430" fill="none" stroke="#1F3A5F" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mn)"/>
+<path d="M1030,430 L1100,430" fill="none" stroke="#1F3A5F" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mn)"/>
+<path d="M1500,430 L1570,430" fill="none" stroke="#C8711F" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mo)"/>
+<text x="1535.0" y="416" font-size="21" fill="#C8711F" font-weight="700" text-anchor="middle">oui</text>
+<rect x="1170.0" y="640" width="260" height="70" rx="35" fill="#fff" stroke="#6B7280" stroke-width="2.5"/>
+<text x="1300.0" y="684" font-size="22" fill="#6B7280" font-weight="700" text-anchor="middle">Annulé / alerte</text>
+<path d="M1300.0,560.0 L1300.0,640" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mg)"/>
+<text x="1314.0" y="598.0" font-size="21" fill="#6B7280" font-weight="700" text-anchor="start">non</text>
+<path d="M1710.0,537 L1710.0,800 L1000,800" fill="none" stroke="#1F3A5F" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mn)"/>
+<rect x="600" y="745.0" width="400" height="110" rx="40" fill="#fff" stroke="#1F3A5F" stroke-width="2.5"/>
+<text x="800.0" y="790.67" font-size="27" fill="#1F3A5F" font-weight="700" text-anchor="middle">Réponse vocale</text>
+<text x="800.0" y="831.4699999999999" font-size="20" fill="#6B7280" font-weight="500" text-anchor="middle">dans sa langue</text>
+<path d="M600,800 L200.0,800 L200.0,505" fill="none" stroke="#1F3A5F" stroke-width="2.5" stroke-linejoin="miter" marker-end="url(#mn)"/>
+<rect x="70" y="930" width="1780" height="76" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+<text x="960" y="977" font-size="24" fill="#4B5563" font-weight="600" text-anchor="middle">Socle : données J'aime ma langue + nos enregistrements  →  entraînement GPU des modèles vocaux</text>
+</svg>
