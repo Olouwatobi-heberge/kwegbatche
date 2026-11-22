@@ -22,6 +22,7 @@ create table if not exists public.recordings (
   duration_ms integer not null,
   size_bytes integer not null,
   reviewed_at timestamptz,
+  -- non_dit reste admis pour les lignes déjà là. L'envoi n'accepte plus que vide, femme ou homme.
   constraint recordings_gender_check check (gender in ('', 'femme', 'homme', 'non_dit'))
 );
 

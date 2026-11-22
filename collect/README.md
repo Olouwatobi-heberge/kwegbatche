@@ -80,7 +80,7 @@ L'aperçu reprend le titre de la page. Si le micro ne s'ouvre pas dans WhatsApp 
 ## Parcours contributeur
 
 1. Lire l'accueil, puis accepter.
-2. Choisir la langue. Le code locuteur, le sexe (Femme, Homme, ou Je ne précise pas) et l'âge sont facultatifs. Pas de nom, pas de numéro.
+2. Choisir la langue. Le code locuteur, le sexe (Femme ou Homme) et l'âge sont facultatifs. Pas de nom, pas de numéro.
 3. Une phrase à la fois : enregistrer, écouter, envoyer. Précédent et Suivant changent de phrase sans enregistrer. Maximum 15 secondes, 2 Mo.
 4. Si `fon` ou `yo` est vide, la phrase française s'affiche. La personne la dit dans sa langue.
 

@@ -118,6 +118,24 @@ async function main() {
   });
   assert(oldGender.status === 400, `sexe retiré encore accepté : ${oldGender.status}`);
 
+  const unspecified = await upload({
+    phraseId: 'solde_03',
+    language: 'fon',
+    speakerCode: 'loc-testa',
+    file: sample,
+    extra: { gender: 'non_dit' },
+  });
+  assert(unspecified.status === 400, `option retirée encore acceptée : ${unspecified.status}`);
+
+  const blankGender = await upload({
+    phraseId: 'solde_04',
+    language: 'yoruba',
+    speakerCode: 'loc-testa',
+    file: sample,
+    extra: { gender: '' },
+  });
+  assert(blankGender.status === 200, `sexe vide refusé : ${blankGender.status}`);
+
   const second = await upload({
     phraseId: 'conf_02',
     language: 'fr',
