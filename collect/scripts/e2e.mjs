@@ -206,8 +206,8 @@ async function main() {
   assert(ids.has(secondBody.id), 'second enregistrement absent');
   assert(!list.recordings.some((row) => row.speakerCode === 'loc-trap'), 'le piège a été stocké');
   const fon = list.recordings.find((row) => row.id === firstBody.id);
-  assert(fon.language === 'fon' && fon.fallbackFr === true, 'repli français non marqué');
-  assert(fon.sentence.includes('solde'), 'phrase stockée inattendue');
+  assert(fon.language === 'fon' && fon.fallbackFr === false, 'la traduction fon devrait être utilisée');
+  assert(fon.sentence.includes('ɖ'), 'phrase fon absente');
   assert(list.stats.byLanguage.fon.total >= 1, 'compteur fon manquant');
   assert(list.stats.bySpeaker.some((row) => row.speakerCode === 'loc-testa'), 'compteur locuteur manquant');
 
@@ -229,14 +229,14 @@ async function main() {
   const csv = await csvRes.text();
   assert(csvRes.status === 200, 'export csv refusé');
   assert(csv.includes('loc-testa') && csv.includes('solde_01'), 'csv incomplet');
-  assert(csv.includes('fallback_fr') && csv.includes('true'), 'colonne fallback_fr absente');
+  assert(csv.includes('fallback_fr') && csv.includes('false'), 'colonne fallback_fr absente');
   assert(!csv.includes('loc-testb'), 'le rejet est dans le csv');
   assert(csv.includes('file_path'), 'colonnes csv absentes');
 
   const jsonlRes = await fetch(`${base}/api/admin/export?format=jsonl`, { headers: { Cookie: cookie } });
   const jsonl = await jsonlRes.text();
   const row = JSON.parse(jsonl.trim().split('\n')[0]);
-  assert(row.speaker_code === 'loc-testa' && row.status === 'keep' && row.fallback_fr === 'true', 'jsonl inattendu');
+  assert(row.speaker_code === 'loc-testa' && row.status === 'keep' && row.fallback_fr === 'false', 'jsonl inattendu');
 
   const zipRes = await fetch(`${base}/api/admin/export?format=zip`, { headers: { Cookie: cookie } });
   assert(zipRes.status === 200, 'export zip refusé');
