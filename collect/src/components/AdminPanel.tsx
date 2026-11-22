@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { intentLabel, LANGUAGE_LABELS } from '@/lib/labels';
+import { genderLabel, intentLabel, LANGUAGE_LABELS } from '@/lib/labels';
 import type { Language, Recording, RecordingStatus, Stats } from '@/lib/types';
 import { LANGUAGES } from '@/lib/types';
 
@@ -291,8 +291,8 @@ export default function AdminPanel() {
                 {formatSeconds(rec.durationMs)}, {formatWhen(rec.createdAt)}
               </p>
               {rec.fallbackFr ? <p className="badge">Dit d’après le français</p> : null}
-              {rec.gender || rec.ageRange ? (
-                <p className="meta">{[rec.gender, rec.ageRange].filter(Boolean).join(', ')}</p>
+              {genderLabel(rec.gender) || rec.ageRange ? (
+                <p className="meta">{[genderLabel(rec.gender), rec.ageRange].filter(Boolean).join(', ')}</p>
               ) : null}
             </div>
             <div className="stack">
@@ -306,7 +306,7 @@ export default function AdminPanel() {
               <div className="btn-row">
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn validate"
                   disabled={pendingId === rec.id || rec.status === 'keep'}
                   onClick={() => void mark(rec, 'keep')}
                 >

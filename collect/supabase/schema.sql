@@ -21,7 +21,8 @@ create table if not exists public.recordings (
   mime_type text not null,
   duration_ms integer not null,
   size_bytes integer not null,
-  reviewed_at timestamptz
+  reviewed_at timestamptz,
+  constraint recordings_gender_check check (gender in ('', 'femme', 'homme', 'non_dit'))
 );
 
 create index if not exists recordings_language_status_idx

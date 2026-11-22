@@ -109,6 +109,15 @@ async function main() {
   const firstBody = await first.json();
   assert(first.status === 200 && firstBody.id && firstBody.id !== '0', 'premier envoi refusé');
 
+  const oldGender = await upload({
+    phraseId: 'solde_02',
+    language: 'fr',
+    speakerCode: 'loc-testa',
+    file: sample,
+    extra: { gender: 'autre' },
+  });
+  assert(oldGender.status === 400, `sexe retiré encore accepté : ${oldGender.status}`);
+
   const second = await upload({
     phraseId: 'conf_02',
     language: 'fr',
