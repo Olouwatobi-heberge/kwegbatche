@@ -91,6 +91,27 @@
         </button>
       </div>
     </div>
+      <div class="quick-examples" style="margin: 1rem 0; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+  <span style="font-size: 0.8rem; color: var(--text-muted); width: 100%;">Exemples réels du dataset :</span>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="setDemoInput('Un jlo ná sɛ caki atɔɔn dó Amina', 'fon')">
+    🇧🇯 Transfert 5000F Amina (Fongbé)
+  </button>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="setDemoInput('Mo fẹ́ fi ẹgbẹ̀rún márùn-ún fránkì ránṣẹ́ sí Amina', 'yor')">
+    🇳🇬 Transfert 5000F Amina (Yoruba)
+  </button>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="setDemoInput('Nabi akwɛ un ɖó ɖò compte ce mɛ?', 'fon')">
+    🇧🇯 Solde (Fongbé)
+  </button>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="setDemoInput('Èló ni mo ti ná tẹ́lẹ̀?', 'yor')">
+    🇳🇬 Dépenses Budget (Yoruba)
+  </button>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="setDemoInput('Ɛɛn, un ɖɔ ɛ.', 'fon')">
+    ✅ Confirmer (Fongbé)
+  </button>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="setDemoInput('Fagilé.', 'yor')">
+    ❌ Annuler (Yoruba)
+  </button>
+</div>
   </div>
 
   <!-- PANNEAU 5 : ANTI-ARNAQUE -->
@@ -114,6 +135,10 @@
     <button class="btn btn-primary" data-call="tts">Générer l'audio TTS</button>
     <audio id="tts-out" controls style="margin-top:1rem; display:none; width:100%;"></audio>
   </div>
+
+
+
+
 
   <!-- ZONE DE SORTIE : MOBILE VS JSON -->
   <div class="demo-split-view">
@@ -143,5 +168,14 @@
 
   </div>
 </section>
+
+<script>
+  function setDemoInput(text, lang) {
+    const input = document.getElementById('text-input') || document.querySelector('input[name="text"]');
+    const select = document.getElementById('lang-select') || document.querySelector('select[name="lang"]');
+    if (input) input.value = text;
+    if (select) select.value = lang;
+  }
+</script>
 
 <script src="/js/demo.js"></script>
