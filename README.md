@@ -30,7 +30,10 @@ ml/tts/          Synthèse vocale
 data/            Métadonnées et scripts d'accès aux corpus (pas les audios lourds)
 eval/            Baseline, mesures WER/CER, intentions, latence
 docs/            Cahier des charges et documents de projet
+collect/         Collecte de voix (lien public, validation par l'équipe)
 ```
+
+La collecte de voix est dans `collect/`. Mode d'emploi : `collect/README.md`.
 
 ## Reproductibilité
 
