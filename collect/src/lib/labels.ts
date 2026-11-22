@@ -22,6 +22,7 @@ export function intentLabel(intent: string): string {
 export function genderLabel(value: string): string {
   if (value === 'femme') return 'Femme';
   if (value === 'homme') return 'Homme';
+  // Valeur encore présente sur d'anciennes prises.
   if (value === 'non_dit') return 'Je ne précise pas';
   return '';
 }

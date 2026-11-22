@@ -246,6 +246,8 @@ h2 {
 .page-head h1 { margin: 0; }
 
 .choices { display: grid; gap: 0.55rem; }
+.choices.pair { grid-template-columns: 1fr 1fr; }
+.choices.pair .choice { text-align: center; }
 
 .choice {
   min-height: 3rem;

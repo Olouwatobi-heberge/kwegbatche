@@ -1,4 +1,5 @@
--- Sexe : Femme, Homme, Je ne précise pas, ou vide.
+-- Sexe en base : vide, femme, homme, ou non_dit pour les lignes déjà là.
+-- L'application n'accepte plus non_dit à l'envoi.
 -- A lancer dans le SQL Editor si le projet existe déjà.
 -- Les lignes déjà enregistrées ne sont ni effacées ni modifiées.
 -- S'il reste une ancienne valeur, la contrainte n'est pas posée :

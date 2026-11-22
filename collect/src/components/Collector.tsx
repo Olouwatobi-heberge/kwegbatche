@@ -20,7 +20,6 @@ const LANGS: { id: Language; label: string }[] = [
 const GENDERS = [
   { id: 'femme', label: 'Femme' },
   { id: 'homme', label: 'Homme' },
-  { id: 'non_dit', label: 'Je ne précise pas' },
 ];
 
 const AGES = [
@@ -95,7 +94,7 @@ function loadDraft(): Draft | null {
     const parsed = JSON.parse(raw) as Draft;
     if (!parsed || typeof parsed !== 'object') return null;
     const draft = { ...emptyDraft(), ...parsed, cursor: parsed.cursor ?? {} };
-    if (draft.gender === 'autre') draft.gender = '';
+    if (draft.gender !== 'femme' && draft.gender !== 'homme') draft.gender = '';
     return draft;
   } catch {
     return null;
@@ -1039,7 +1038,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
           </p>
           <fieldset>
             <legend>Sexe, facultatif</legend>
-            <div className="choices split">
+            <div className="choices pair">
               {GENDERS.map((item) => (
                 <button
                   key={item.id}
