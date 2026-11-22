@@ -19,7 +19,6 @@ const LANGS: { id: Language; label: string }[] = [
 const GENDERS = [
   { id: 'femme', label: 'Femme' },
   { id: 'homme', label: 'Homme' },
-  { id: 'autre', label: 'Autre' },
   { id: 'non_dit', label: 'Je ne précise pas' },
 ];
 
@@ -40,6 +39,7 @@ type Draft = {
   gender: string;
   ageRange: string;
   order: Partial<Record<Language, string[]>>;
+  cursor: Partial<Record<Language, number>>;
   sent: Partial<Record<Language, string[]>>;
   skipped: Partial<Record<Language, string[]>>;
 };
@@ -52,6 +52,7 @@ function emptyDraft(): Draft {
     gender: '',
     ageRange: '',
     order: {},
+    cursor: {},
     sent: {},
     skipped: {},
   };
@@ -90,10 +91,18 @@ function loadDraft(): Draft | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Draft;
     if (!parsed || typeof parsed !== 'object') return null;
-    return { ...emptyDraft(), ...parsed };
+    const draft = { ...emptyDraft(), ...parsed, cursor: parsed.cursor ?? {} };
+    if (draft.gender === 'autre') draft.gender = '';
+    return draft;
   } catch {
     return null;
   }
+}
+
+function firstOpenIndex(order: string[], sent?: string[], skipped?: string[]): number {
+  const done = new Set([...(sent ?? []), ...(skipped ?? [])]);
+  const index = order.findIndex((id) => !done.has(id));
+  return index === -1 ? order.length : index;
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -200,16 +209,19 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const language = draft.language;
   const order = language ? draft.order[language] ?? [] : [];
   const sentIds = language ? draft.sent[language] ?? [] : [];
-  const skippedIds = language ? draft.skipped[language] ?? [] : [];
   const sentSet = useMemo(() => new Set(sentIds), [sentIds]);
-  const skippedSet = useMemo(() => new Set(skippedIds), [skippedIds]);
-  const current = order
-    .map((id) => phraseById.get(id))
-    .find((phrase) => phrase && !sentSet.has(phrase.id) && !skippedSet.has(phrase.id));
+  const storedCursor = language ? draft.cursor?.[language] : undefined;
+  const safeCursor =
+    order.length === 0 ? 0 : Math.min(Math.max(storedCursor ?? 0, 0), order.length);
+  const atEnd = order.length > 0 && safeCursor >= order.length;
+  const current = atEnd ? undefined : phraseById.get(order[safeCursor] ?? '');
   const sentTotal = (['fon', 'yoruba', 'fr'] as const).reduce(
-    (sum, lang) => sum + (draft.sent[lang]?.length ?? 0),
+    (sum, lang) => sum + new Set(draft.sent[lang] ?? []).size,
     0,
   );
+  const sentCount = order.filter((id) => sentSet.has(id)).length;
+  const missingCount = order.filter((id) => !sentSet.has(id)).length;
+  const firstMissing = order.findIndex((id) => !sentSet.has(id));
 
   useEffect(() => {
     setBlob(null);
@@ -248,10 +260,19 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   function startPhrases() {
     if (!draft.language) return;
     const lang = draft.language;
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      order: { ...currentDraft.order, [lang]: ensureOrder(ids, currentDraft.order[lang]) },
-    }));
+    setDraft((currentDraft) => {
+      const nextOrder = ensureOrder(ids, currentDraft.order[lang]);
+      const stored = currentDraft.cursor?.[lang];
+      const cursor =
+        typeof stored === 'number' && stored >= 0
+          ? Math.min(stored, nextOrder.length)
+          : firstOpenIndex(nextOrder, currentDraft.sent[lang], currentDraft.skipped[lang]);
+      return {
+        ...currentDraft,
+        order: { ...currentDraft.order, [lang]: nextOrder },
+        cursor: { ...currentDraft.cursor, [lang]: cursor },
+      };
+    });
     setStep('record');
   }
 
@@ -392,15 +413,13 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     setError('');
   }
 
-  function skip() {
-    if (!current || !language) return;
-    const phraseId = current.id;
+  function move(next: number) {
+    if (!language || order.length === 0) return;
+    if (phase === 'recording' || phase === 'sending' || phase === 'review') return;
+    const clamped = Math.max(0, Math.min(order.length, next));
     setDraft((currentDraft) => ({
       ...currentDraft,
-      skipped: {
-        ...currentDraft.skipped,
-        [language]: [...(currentDraft.skipped[language] ?? []), phraseId],
-      },
+      cursor: { ...currentDraft.cursor, [language]: clamped },
     }));
   }
 
@@ -436,26 +455,31 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
         setPhase('review');
         return;
       }
-      setDraft((currentDraft) => ({
-        ...currentDraft,
-        speakerCode:
-          typeof data.speakerCode === 'string' && data.speakerCode
-            ? data.speakerCode
-            : currentDraft.speakerCode,
-        sent: {
-          ...currentDraft.sent,
-          [language]: [...(currentDraft.sent[language] ?? []), phraseId],
-        },
-      }));
+      setDraft((currentDraft) => {
+        const previous = currentDraft.sent[language] ?? [];
+        const sent = previous.includes(phraseId) ? previous : [...previous, phraseId];
+        const phraseOrder = currentDraft.order[language] ?? [];
+        const index = currentDraft.cursor?.[language] ?? 0;
+        return {
+          ...currentDraft,
+          speakerCode:
+            typeof data.speakerCode === 'string' && data.speakerCode
+              ? data.speakerCode
+              : currentDraft.speakerCode,
+          sent: { ...currentDraft.sent, [language]: sent },
+          cursor: { ...currentDraft.cursor, [language]: Math.min(phraseOrder.length, index + 1) },
+        };
+      });
     } catch {
       setError('Pas de réseau. Réessayez.');
       setPhase('review');
     }
   }
 
-  const total = phrases.length;
-  const sentCount = sentIds.length;
+  const total = order.length || phrases.length;
   const prompt = current && language ? promptFor(current, language) : null;
+  const alreadySent = Boolean(current && sentSet.has(current.id));
+  const navLocked = phase === 'recording' || phase === 'sending' || phase === 'review';
 
   return (
     <div className="stack-lg">
@@ -615,7 +639,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
             {draft.speakerCode ? `, code ${draft.speakerCode}` : ''}
           </p>
           <h1>
-            Phrase {Math.min(total, sentCount + skippedIds.length + 1)} sur {total}
+            Phrase {safeCursor + 1} sur {total}
           </h1>
           <p className="meta">{plural(sentCount, 'envoyée', 'envoyées')}</p>
           <div
@@ -629,7 +653,12 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
             <span style={{ width: `${total ? (sentCount / total) * 100 : 0}%` }} />
           </div>
           <p className="note">{prompt.hint}</p>
-          <p className="sentence">{prompt.text}</p>
+          {alreadySent ? (
+            <p className="note">Déjà envoyée. Vous pouvez enregistrer une nouvelle prise. Elle ne compte pas deux fois.</p>
+          ) : null}
+          <p className="sentence" aria-live="polite">
+            {prompt.text}
+          </p>
           <form
             className="stack"
             onSubmit={(event) => {
@@ -658,7 +687,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
                   onClick={() => (phase === 'recording' ? stopRecording() : void startRecording())}
                 >
                   <span className="mark" aria-hidden="true" />
-                  {phase === 'recording' ? 'Arrêter' : 'Enregistrer'}
+                  {phase === 'recording' ? 'Arrêter' : alreadySent ? 'Enregistrer à nouveau' : 'Enregistrer'}
                 </button>
                 <p className="timer">
                   {clock(phase === 'recording' ? elapsed : 0)} / 0:15
@@ -709,46 +738,53 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
               ) : null}
               {info ? <p className="note">{info}</p> : null}
             </div>
-            <button type="button" className="btn quiet" disabled={phase === 'recording' || phase === 'sending'} onClick={skip}>
-              Passer
-            </button>
+            <div className="nav-row">
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={safeCursor <= 0 || navLocked}
+                onClick={() => move(safeCursor - 1)}
+              >
+                Précédent
+              </button>
+              <button type="button" className="btn secondary" disabled={navLocked} onClick={() => move(safeCursor + 1)}>
+                Suivant
+              </button>
+            </div>
+            {phase === 'review' ? (
+              <p className="help">Envoyez ou recommencez avant de changer de phrase.</p>
+            ) : null}
           </form>
           <p className="help">Vous pouvez fermer la page. Rouvrez le même lien sur ce téléphone pour continuer.</p>
         </section>
       ) : null}
 
-      {step === 'record' && language && !current ? (
+      {step === 'record' && language && atEnd ? (
         <section className="card stack">
-          <h1>{skippedIds.length > 0 ? 'Phrases passées' : 'Merci'}</h1>
-          {skippedIds.length > 0 ? (
-            <>
-              <p>
-                Il reste {plural(skippedIds.length, 'phrase passée', 'phrases passées')}. Vous pouvez les reprendre.
-              </p>
-              <button
-                type="button"
-                className="btn primary"
-                onClick={() =>
-                  setDraft((currentDraft) => ({
-                    ...currentDraft,
-                    skipped: { ...currentDraft.skipped, [language]: [] },
-                  }))
-                }
-              >
-                Reprendre les phrases passées
-              </button>
-            </>
-          ) : (
-            <>
-              <p>Vos phrases sont envoyées. L’équipe les écoute avant de les utiliser.</p>
-              {draft.speakerCode ? (
-                <p>
-                  Votre code locuteur : <strong>{draft.speakerCode}</strong>. Gardez-le pour demander une
-                  suppression, ou pour continuer plus tard.
-                </p>
-              ) : null}
-            </>
-          )}
+          <h1>Merci</h1>
+          <p>
+            {plural(sentCount, 'phrase envoyée', 'phrases envoyées')} sur {total}. L’équipe les écoute avant de
+            les utiliser.
+          </p>
+          {missingCount > 0 ? (
+            <p className="note">
+              Il reste {plural(missingCount, 'phrase sans envoi', 'phrases sans envoi')}.
+            </p>
+          ) : null}
+          {draft.speakerCode ? (
+            <p>
+              Votre code locuteur : <strong>{draft.speakerCode}</strong>. Gardez-le pour demander une suppression,
+              ou pour continuer plus tard.
+            </p>
+          ) : null}
+          {firstMissing >= 0 ? (
+            <button type="button" className="btn primary" onClick={() => move(firstMissing)}>
+              Aller à une phrase sans envoi
+            </button>
+          ) : null}
+          <button type="button" className="btn secondary" onClick={() => move(order.length - 1)}>
+            Revenir à la dernière phrase
+          </button>
           <button
             type="button"
             className="btn secondary"

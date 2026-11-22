@@ -21,6 +21,11 @@ function csvCell(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
+function exportGender(value: string): string {
+  if (value === 'femme' || value === 'homme' || value === 'non_dit') return value;
+  return '';
+}
+
 export function recordingToRow(rec: Recording): ExportRow {
   return {
     file_path: rec.storagePath,
@@ -31,7 +36,7 @@ export function recordingToRow(rec: Recording): ExportRow {
     speaker_code: rec.speakerCode,
     status: rec.status,
     duration_ms: String(rec.durationMs),
-    gender: rec.gender,
+    gender: exportGender(rec.gender),
     age_range: rec.ageRange,
     fallback_fr: rec.fallbackFr ? 'true' : 'false',
   };

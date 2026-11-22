@@ -191,6 +191,12 @@ h2 {
   text-decoration: none;
 }
 
+.nav-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
 .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .btn-row .btn { width: auto; flex: 1 1 9rem; }
 .btn-row.tight .btn { flex: 1 1 8rem; }

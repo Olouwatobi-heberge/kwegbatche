@@ -52,7 +52,7 @@ export type Stats = {
 
 export const LANGUAGES: Language[] = ['fon', 'yoruba', 'fr'];
 
-export const GENDERS = ['femme', 'homme', 'autre', 'non_dit'] as const;
+export const GENDERS = ['femme', 'homme', 'non_dit'] as const;
 export const AGE_RANGES = ['18-25', '26-35', '36-50', '51+'] as const;
 
 export function isLanguage(value: string): value is Language {

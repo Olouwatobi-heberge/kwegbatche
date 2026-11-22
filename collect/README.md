@@ -53,6 +53,7 @@ Le micro exige `localhost` ou HTTPS.
 
 1. Créer un projet. Choisir une région proche, par exemple Europe de l'Ouest. Attendre la fin.
 2. SQL Editor, New query. Coller tout `collect/supabase/schema.sql`. Run.
+   Projet déjà créé : coller aussi `collect/supabase/002_gender.sql`. Run. Les lignes déjà là ne sont pas effacées.
 3. Storage. Vérifier les buckets privés `recordings` et `exports`. S'ils manquent : New bucket, nom exact, Public désactivé. Limite 2 Mo pour `recordings`.
 4. Project Settings, API.
    - Project URL : `SUPABASE_URL`
@@ -79,8 +80,8 @@ L'aperçu reprend le titre de la page. Si le micro ne s'ouvre pas dans WhatsApp 
 ## Parcours contributeur
 
 1. Lire l'accueil, puis accepter.
-2. Choisir la langue. Le code locuteur, le sexe et l'âge sont facultatifs. Pas de nom, pas de numéro.
-3. Une phrase à la fois : enregistrer, écouter, envoyer ou passer. Maximum 15 secondes, 2 Mo.
+2. Choisir la langue. Le code locuteur, le sexe (Femme, Homme, ou Je ne précise pas) et l'âge sont facultatifs. Pas de nom, pas de numéro.
+3. Une phrase à la fois : enregistrer, écouter, envoyer. Précédent et Suivant changent de phrase sans enregistrer. Maximum 15 secondes, 2 Mo.
 4. Si `fon` ou `yo` est vide, la phrase française s'affiche. La personne la dit dans sa langue.
 
 La progression reste sur le téléphone. Le code locuteur sert à continuer, ou à demander une suppression.
