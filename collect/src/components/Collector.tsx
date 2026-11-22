@@ -6,6 +6,7 @@ import { promptFor } from '@/lib/prompt';
 import type { Language, Phrase } from '@/lib/types';
 
 const STORAGE_KEY = 'kgb-collect-v1';
+const MIC_KEY = 'kgb-mic-device';
 const CLIENT_MAX_MS = 15_000;
 const CLIENT_MIN_MS = 300;
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -28,6 +29,8 @@ const AGES = [
   { id: '36-50', label: '36 à 50 ans' },
   { id: '51+', label: '51 ans et plus' },
 ];
+
+type MicChoice = { id: string; label: string };
 
 type Step = 'home' | 'consent' | 'profile' | 'record';
 type Phase = 'idle' | 'recording' | 'review' | 'sending';
@@ -199,8 +202,18 @@ function playableBlob(blob: Blob): Blob | null {
 
 function chooseMime(): string {
   if (typeof MediaRecorder === 'undefined') return '';
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
   return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+}
+
+function audioConstraints(deviceId: string): MediaTrackConstraints {
+  const audio: MediaTrackConstraints = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  };
+  if (deviceId) audio.deviceId = { exact: deviceId };
+  return audio;
 }
 
 function extensionFor(mime: string): string {
@@ -246,6 +259,9 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [levels, setLevels] = useState<number[]>(() => flatWave());
+  const [mics, setMics] = useState<MicChoice[]>([]);
+  const [micId, setMicId] = useState('');
+  const [micStatus, setMicStatus] = useState('');
 
   const streamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -264,6 +280,9 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const samplesRef = useRef<number[]>([]);
   const silenceMsRef = useRef(0);
   const silenceNotedRef = useRef(false);
+  const recorderStreamRef = useRef<MediaStream | null>(null);
+  const micIdRef = useRef('');
+  const micStatusRef = useRef('');
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const phraseById = useMemo(() => new Map(phrases.map((phrase) => [phrase.id, phrase])), [phrases]);
@@ -272,6 +291,9 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   useEffect(() => {
     const saved = loadDraft();
     if (saved) setDraft(saved);
+    const savedMic = localStorage.getItem(MIC_KEY) || '';
+    micIdRef.current = savedMic;
+    setMicId(savedMic);
     setHydrated(true);
   }, []);
 
@@ -279,6 +301,11 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
   }, [draft, hydrated]);
+
+  useEffect(() => {
+    if (step !== 'record') return;
+    void refreshMics();
+  }, [step]);
 
   useEffect(() => {
     return () => {
@@ -326,7 +353,27 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
 
   function stopStream() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
+    recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    recorderStreamRef.current = null;
+  }
+
+  function noteMic(status: string) {
+    if (micStatusRef.current === status) return;
+    micStatusRef.current = status;
+    setMicStatus(status);
+  }
+
+  async function refreshMics() {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    const found = await navigator.mediaDevices.enumerateDevices();
+    const inputs = found.filter((device) => device.kind === 'audioinput');
+    setMics(
+      inputs.map((device, index) => ({
+        id: device.deviceId,
+        label: device.label.trim() || `Microphone ${index + 1}`,
+      })),
+    );
   }
 
   async function stopAnalyser() {
@@ -417,14 +464,19 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
       const now = performance.now();
       silenceMsRef.current = rms < 0.012 ? silenceMsRef.current + (now - last) : 0;
       last = now;
-      if (silenceMsRef.current >= 2000 && !silenceNotedRef.current) {
+      const track = stream.getAudioTracks()[0];
+      const muted = !track || track.readyState !== 'live' || track.muted || !track.enabled;
+      noteMic(muted ? 'Micro muet' : 'Micro actif');
+      if (silenceMsRef.current >= 1500 && !silenceNotedRef.current) {
         silenceNotedRef.current = true;
-        setInfo("Le micro ne capte rien, vérifiez l'autorisation");
+        noteMic('Micro muet');
+        setInfo('Le micro ne capte rien. Choisissez un autre micro.');
       } else if (rms >= 0.012 && silenceNotedRef.current) {
         silenceNotedRef.current = false;
         setInfo('');
       }
       const elapsedMs = Date.now() - startedRef.current;
+      setElapsed(elapsedMs);
       const filled = Math.max(1, Math.round(Math.min(1, elapsedMs / CLIENT_MAX_MS) * WAVE_BARS));
       paintEnvelope(samplesRef.current, filled);
       waveRaf.current = requestAnimationFrame(draw);
@@ -541,30 +593,45 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     audioCtxRef.current = context;
     const resumed = context.resume();
     try {
+      const preferred = micIdRef.current;
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints(preferred) });
       } catch {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints('') });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
       }
       await resumed;
       if (context.state === 'suspended') await context.resume();
       streamRef.current = stream;
-      const track = stream.getAudioTracks()[0];
-      if (!track || track.readyState !== 'live' || !track.enabled || track.muted) {
-        setInfo("Le micro ne capte rien, vérifiez l'autorisation");
+      let forRecorder = stream;
+      try {
+        forRecorder = stream.clone();
+      } catch {
+        forRecorder = stream;
       }
+      recorderStreamRef.current = forRecorder;
+      await refreshMics();
+      const track = stream.getAudioTracks()[0];
+      noteMic(!track || track.readyState !== 'live' || track.muted || !track.enabled ? 'Micro muet' : 'Micro actif');
+      track?.addEventListener('mute', () => noteMic('Micro muet'));
+      track?.addEventListener('unmute', () => noteMic('Micro actif'));
       watchMic(context, stream);
       const mime = chooseMime();
-      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      const rec = mime ? new MediaRecorder(forRecorder, { mimeType: mime }) : new MediaRecorder(forRecorder);
       chunksRef.current = [];
       rec.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
       };
       rec.onstop = () => {
-        void finishTake(rec.mimeType || mime || 'audio/webm');
+        const chunks = chunksRef.current.slice();
+        const history = samplesRef.current.slice();
+        const ms = Math.max(0, Date.now() - startedRef.current);
+        const recorded = new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' });
+        void finishTake(recorded, history, ms);
       };
       recRef.current = rec;
       rec.start(250);
@@ -577,15 +644,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
         setElapsed(ms);
         if (ms >= CLIENT_MAX_MS) {
           const active = recRef.current;
-          if (active && active.state === 'recording') {
-            try {
-              active.requestData();
-            } catch {
-              /* certains navigateurs refusent requestData */
-            }
-            active.stop();
-          }
-          clearTimer();
+          if (active && active.state === 'recording') active.stop();
           setInfo('Durée maximum atteinte.');
         }
       }, 200);
@@ -599,42 +658,31 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     }
   }
 
-  async function finishTake(type: string) {
-    const history = samplesRef.current.slice();
-    const ms = Date.now() - startedRef.current;
+  async function finishTake(recorded: Blob, history: number[], ms: number) {
     await stopAnalyser();
     stopStream();
     clearTimer();
-    const recorded = new Blob(chunksRef.current, { type });
-    if (recorded.size < 2048) {
+    setElapsed(ms);
+    setDurationMs(ms);
+    if (recorded.size < 800) {
       setBlob(null);
       setLevels(flatWave());
       setPhase('idle');
       setError("L'enregistrement est vide. Réessayez.");
       return;
     }
-    setDurationMs(ms);
     setBlob(recorded);
     setLevels(resamplePeaks(history, WAVE_BARS));
     setPhase('review');
-    void envelopeFromBlob(recorded).then((envelope) => {
-      if (!envelope) return;
-      setLevels(envelope.bars);
-      if (envelope.durationMs > 0) setDurationMs(envelope.durationMs);
-    });
+    const envelope = await envelopeFromBlob(recorded);
+    if (!envelope) return;
+    setLevels(envelope.bars);
+    if (envelope.durationMs > 0) setDurationMs(envelope.durationMs);
   }
 
   function stopRecording() {
     const rec = recRef.current;
-    if (rec && rec.state === 'recording') {
-      try {
-        rec.requestData();
-      } catch {
-        /* certains navigateurs refusent requestData */
-      }
-      rec.stop();
-    }
-    clearTimer();
+    if (rec && rec.state === 'recording') rec.stop();
   }
 
   async function onFile(file: File | undefined) {
@@ -1070,6 +1118,28 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
                 }}
               />
             </div>
+            {mics.length > 1 ? (
+              <label className="field mic-picker">
+                Microphone
+                <select
+                  value={mics.some((item) => item.id === micId) ? micId : ''}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    micIdRef.current = next;
+                    setMicId(next);
+                    localStorage.setItem(MIC_KEY, next);
+                  }}
+                >
+                  <option value="">Micro par défaut</option>
+                  {mics.map((item) => (
+                    <option key={item.id || item.label} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {micStatus ? <p className="help">{micStatus}</p> : null}
             <div className="wave" aria-hidden="true">
               {levels.map((level, index) => (
                 <span
