@@ -15,7 +15,8 @@ function formatLog(level, message, meta = {}) {
     ...cleanMeta
   };
 
-  return JSON.stringify(logEntry);
+  // return JSON.stringify(logEntry, 0, 2);
+  return message
 }
 
 module.exports = {
