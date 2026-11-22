@@ -101,7 +101,7 @@ Dans le ZIP, `file_path` est aussi le chemin du fichier. Dans Supabase, c'est le
 
 ## Traductions
 
-Éditer `script/phrases.csv`, colonnes `fon` et `yo`, puis redéployer. Les prochains enregistrements afficheront la traduction.
+`script/phrases.csv` contient un brouillon fon et yoruba à faire relire. Les notes et niveaux de confiance sont dans `script/phrases_fon_yo_sources.csv`. Une case vide affiche le français. Après une correction, redéployer.
 
 ## Suppression
 
