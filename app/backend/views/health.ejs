@@ -1,29 +1,50 @@
-<section class="glass">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:0.5rem;">
-    <h1 style="margin:0;">Santé du service</h1>
-    <span id="global-status" class="status-pill up">
-      <span class="status-dot"></span> opérationnel
-    </span>
+<section class="health-container">
+  <!-- En-tête avec Statut Global -->
+  <div class="health-header">
+    <div>
+      <h1 class="page-title">Santé du Système & Services</h1>
+      <p class="muted small">
+        Télémétrie en temps réel des briques IA et Backend · Actualisation automatique (<span id="refresh-timer">10s</span>)
+      </p>
+    </div>
+    <div id="global-status" class="status-badge up">
+      <span class="status-dot"></span>
+      <span class="status-label">Système Opérationnel</span>
+    </div>
   </div>
 
-  <p class="muted small">
-    Vue temps réel des micro-services · refresh automatique toutes les 10s
-  </p>
-
+  <!-- Grille des Micro-Services -->
   <div class="services-grid" id="services-grid">
-    <% Object.entries(services).forEach(([name, status]) => { %>
-      <div class="service-card">
-        <div class="service-name"><%= name.toUpperCase() %></div>
-        <span class="status-pill <%= status === 'up' ? 'up' : 'down' %>">
-          <span class="status-dot"></span> <%= status %>
-        </span>
+    <% 
+      const serviceDetails = {
+        asr: { label: 'ASR (Reconnaissance Vocale)', desc: 'Whisper / MMS fine-tuné (Fon / Yor / Fr)' },
+        nlu: { label: 'NLU (Compréhension)', desc: 'Classifieur d\'intentions & extraction d\'entités' },
+        tts: { label: 'TTS (Synthèse Vocale)', desc: 'VITS / MMS-TTS voix naturelles' },
+        database: { label: 'Base de Données SQLite', desc: 'Transactions atomiques WAL & Idempotence EF-21' }
+      };
+
+      Object.entries(services).forEach(([name, status]) => { 
+        const meta = serviceDetails[name.toLowerCase()] || { label: name.toUpperCase(), desc: 'Composant système' };
+    %>
+      <div class="service-card <%= status === 'up' ? 'status-ok' : 'status-err' %>">
+        <div class="service-card-header">
+          <div class="service-meta">
+            <span class="service-name"><%= meta.label %></span>
+            <span class="service-desc"><%= meta.desc %></span>
+          </div>
+          <span class="status-pill <%= status === 'up' ? 'up' : 'down' %>">
+            <span class="status-dot"></span> <%= status.toUpperCase() %>
+          </span>
+        </div>
       </div>
     <% }) %>
   </div>
 
-  <div class="actions" style="margin-top:2rem;">
-    <a href="/" class="btn">← Retour</a>
-    <a href="/api/v1/health" class="btn" target="_blank" rel="noopener">Voir le JSON</a>
+  <!-- Barre d'actions -->
+  <div class="actions health-actions">
+    <a href="/" class="btn btn-secondary">← Retour à l'accueil</a>
+    <a href="/demo" class="btn btn-primary">🎙️ Tester la Démo</a>
+    <a href="/api/v1/health" class="btn btn-ghost" target="_blank" rel="noopener">📄 Consulter le JSON brut</a>
   </div>
 </section>
 

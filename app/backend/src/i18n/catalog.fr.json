@@ -1,18 +1,37 @@
 {
-  "welcome": "Bonjour {name}, que souhaitez-vous faire aujourd'hui ?",
-  "balance_recap": "Votre solde disponible est de {balance} Francs CFA.",
-  "budget_info": "Cette semaine, vous avez dépensé {spent} Francs sur votre budget de {limit} Francs. Il vous reste {remaining} Francs.",
-  "transfer_recap": "Vous vous apprêtez à envoyer {amount} Francs CFA à {recipient}. Les frais s'élèvent à {fee} Francs, soit un total de {total} Francs CFA débité. Confirmez-vous ce transfert ?",
-  "transfer_success": "Transfert de {amount} Francs CFA vers {recipient} effectué avec succès. Votre nouveau solde est de {newBalance} Francs CFA.",
-  "transfer_cancelled": "Le transfert a été annulé. Aucun montant n'a été débité de votre compte.",
-  "error_insufficient_balance": "Opération refusée : votre solde de {balance} Francs CFA est insuffisant pour envoyer {amount} Francs et payer les {fee} Francs de frais.",
-  "error_invalid_amount": "Le montant demandé n'est pas valide. Veuillez indiquer une somme comprise entre 100 et 500 000 Francs CFA.",
-  "error_contact_not_found": "Je n'ai pas trouvé le contact {recipient} dans votre répertoire.",
-  "clarify_contact": "Plusieurs personnes correspondent à ce nom : {matches}. À qui souhaitez-vous envoyer l'argent ?",
-  "clarify_amount": "Combien de Francs CFA souhaitez-vous envoyer à {recipient} ?",
-  "fallback_rephrase": "Je n'ai pas bien compris votre demande. Vous pouvez dire par exemple : Quel est mon solde, ou Envoyer 5000 Francs à Koffi.",
-  "warning_unknown_contact": "Attention : {recipient} n'est pas dans votre carnet de contacts habituels. Vérifiez bien le numéro avant de continuer.",
-  "warning_high_amount": "Attention : vous envoyez un montant exceptionnellement élevé de {amount} Francs CFA.",
-  "warning_urgency": "Attention : prenez le temps de vérifier votre destinataire. Ne cédez pas à la précipitation.",
-  "alert_pin_request": "Alerte de sécurité : Ne donnez jamais votre code secret ou code PIN ! Aucun agent ni opérateur ne vous le demandera."
+  "welcome": "Bienvenue sur KwèGbaTché. Que souhaitez-vous faire ?",
+  "solde": {
+    "reponse": "Votre solde disponible est de {amount} Francs CFA.",
+    "detail": "Vous avez {amount} FCFA sur votre compte principal."
+  },
+  "frais": {
+    "reponse": "Pour un transfert de {amount} FCFA, les frais sont de {fee} FCFA, soit un total débité de {total} FCFA.",
+    "gratuit": "Cette opération est gratuite (0 FCFA de frais)."
+  },
+  "budget": {
+    "resume": "Votre budget restant est de {remaining} FCFA sur une enveloppe de {total} FCFA.",
+    "depenses": "Vous avez déjà dépensé {spent} FCFA cette période."
+  },
+  "transfert": {
+    "recap": "Vous allez envoyer {amount} FCFA à {recipient}. Les frais sont de {fee} FCFA, pour un total de {total} FCFA. Confirmez-vous l'opération ?",
+    "succes": "Transfert de {amount} FCFA vers {recipient} effectué avec succès. Référence : {ref}.",
+    "annule": "Opération annulée. Aucun débit n'a été effectué sur votre compte."
+  },
+  "confirmation": {
+    "succes": "Opération validée.",
+    "demande": "Dites 'Oui' pour confirmer ou 'Annuler' pour abandonner."
+  },
+  "antifraude": {
+    "bloque": "Opération bloquée par sécurité : {reason}.",
+    "alerte_urgence": "Attention : une pression inhabituelle a été détectée. Vérifiez bien l'identité du destinataire.",
+    "alerte_pin": "Sécurité : Ne communiquez jamais votre code secret PIN à qui que ce soit."
+  },
+  "erreurs": {
+    "solde_insuffisant": "Solde insuffisant pour envoyer {amount} FCFA (frais : {fee} FCFA). Votre solde est de {balance} FCFA.",
+    "destinataire_inconnu": "Destinataire '{recipient}' introuvable dans votre répertoire.",
+    "montant_invalide": "Montant invalide. Le montant minimum est de 100 FCFA et le maximum est de 500 000 FCFA.",
+    "incompris": "Je n'ai pas bien compris votre demande. Vous pouvez demander votre solde, vos frais, votre budget ou faire un transfert.",
+    "idempotence_doublon": "Cette transaction a déjà été traitée."
+  },
+  "hors_sujet": "Je suis votre assistant financier Mobile Money. Je peux vous aider à consulter votre solde, estimer des frais, suivre votre budget ou envoyer de l'argent."
 }

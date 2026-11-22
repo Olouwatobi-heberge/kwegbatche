@@ -5,12 +5,12 @@ const upload = require('../middlewares/upload');
 const audioCtrl = require('../controllers/audio.controller');
 
 // Transcription pure (Audio -> Texte)
-router.post('/audio/transcribe', upload.single('audio'), audioCtrl.transcribe);
+router.post('/transcribe', upload.single('audio'), audioCtrl.transcribe);
 
 // Synthèse vocale pure (Texte -> Audio WAV)
-router.post('/audio/synthesize', audioCtrl.synthesize);
+router.post('/synthesize', audioCtrl.synthesize);
 
 // Pipeline Vocal complet de bout en bout (Audio -> ASR -> Machine -> Réponse)
-router.post('/audio/pipeline', upload.single('audio'), audioCtrl.pipeline);
+router.post('/pipeline', upload.single('audio'), audioCtrl.pipeline);
 
 module.exports = router;
