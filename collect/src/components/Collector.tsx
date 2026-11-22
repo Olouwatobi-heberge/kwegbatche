@@ -149,6 +149,25 @@ function RedoIcon() {
   );
 }
 
+function playableBlob(blob: Blob): Blob | null {
+  const probe = document.createElement('audio');
+  const raw = blob.type || '';
+  const base = raw.split(';')[0]?.trim().toLowerCase() ?? '';
+  const candidates = [
+    raw,
+    base,
+    base === 'audio/mp4' || base === 'video/mp4' ? 'audio/mp4' : '',
+    base === 'audio/mp4' || base === 'video/mp4' ? 'video/mp4' : '',
+    base === 'audio/webm' || base === 'video/webm' ? 'audio/webm' : '',
+    base === 'audio/webm' || base === 'video/webm' ? 'audio/webm;codecs=opus' : '',
+    base === 'audio/ogg' ? 'audio/ogg;codecs=opus' : '',
+  ].filter((type, index, all) => type && all.indexOf(type) === index);
+  const chosen = candidates.find((type) => probe.canPlayType(type) !== '');
+  if (!chosen) return null;
+  if (chosen === raw) return blob;
+  return new Blob([blob], { type: chosen });
+}
+
 function chooseMime(): string {
   if (typeof MediaRecorder === 'undefined') return '';
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
@@ -191,7 +210,8 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const [elapsed, setElapsed] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [playbackMs, setPlaybackMs] = useState(0);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [copied, setCopied] = useState(false);
@@ -207,7 +227,9 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const timerRef = useRef<number | null>(null);
   const startedRef = useRef(0);
   const honeypotRef = useRef('');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playRef = useRef<HTMLAudioElement | null>(null);
+  const playUrlRef = useRef<string | null>(null);
+  const playingRef = useRef(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const phraseById = useMemo(() => new Map(phrases.map((phrase) => [phrase.id, phrase])), [phrases]);
@@ -225,16 +247,6 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   }, [draft, hydrated]);
 
   useEffect(() => {
-    if (!blob) {
-      setAudioUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    setAudioUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [blob]);
-
-  useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const apply = () => setReduceMotion(media.matches);
     apply();
@@ -246,6 +258,9 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
       if (waveRaf.current !== null) cancelAnimationFrame(waveRaf.current);
+      if (playUrlRef.current) URL.revokeObjectURL(playUrlRef.current);
+      playRef.current?.pause();
+      playRef.current?.remove();
       void audioCtxRef.current?.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
       const rec = recRef.current;
@@ -271,6 +286,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const firstMissing = order.findIndex((id) => !sentSet.has(id));
 
   useEffect(() => {
+    releasePlayback();
     setBlob(null);
     setPhase('idle');
     setElapsed(0);
@@ -278,6 +294,8 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     setLevels(flatWave());
     setError('');
     setInfo('');
+    // La lecture est liée à la phrase affichée.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
 
   function stopStream() {
@@ -293,6 +311,27 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     const context = audioCtxRef.current;
     audioCtxRef.current = null;
     if (context && context.state !== 'closed') void context.close();
+  }
+
+  function releasePlayback() {
+    const player = playRef.current;
+    playRef.current = null;
+    if (player) {
+      player.onended = null;
+      player.ontimeupdate = null;
+      player.onerror = null;
+      player.pause();
+      player.removeAttribute('src');
+      player.load();
+      player.remove();
+    }
+    if (playUrlRef.current) {
+      URL.revokeObjectURL(playUrlRef.current);
+      playUrlRef.current = null;
+    }
+    playingRef.current = false;
+    setPlaying(false);
+    setPlaybackMs(0);
   }
 
   function startAnalyser(stream: MediaStream) {
@@ -417,6 +456,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   async function startRecording() {
     setError('');
     setInfo('');
+    releasePlayback();
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setError('Cet appareil ne peut pas enregistrer ici. Ouvrez Chrome ou Safari, ou importez un audio.');
       return;
@@ -494,6 +534,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
 
   function rerecord() {
     stopAnalyser();
+    releasePlayback();
     setBlob(null);
     setLevels(flatWave());
     setPhase('idle');
@@ -504,10 +545,54 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   }
 
   function replay() {
-    const player = audioRef.current;
-    if (!player) return;
-    player.currentTime = 0;
-    void player.play().catch(() => setError('Lecture impossible. Réessayez.'));
+    if (playingRef.current && playRef.current) {
+      playRef.current.pause();
+      playingRef.current = false;
+      setPlaying(false);
+      return;
+    }
+    if (!blob) return;
+    releasePlayback();
+    const source = playableBlob(blob);
+    if (!source) {
+      setError("Ce téléphone ne peut pas relire ce format. Réenregistrez la phrase.");
+      return;
+    }
+    const url = URL.createObjectURL(source);
+    playUrlRef.current = url;
+    const player = document.createElement('audio');
+    player.setAttribute('playsinline', 'true');
+    player.preload = 'auto';
+    player.src = url;
+    player.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(player);
+    playRef.current = player;
+    player.ontimeupdate = () => setPlaybackMs(player.currentTime * 1000);
+    player.onended = () => {
+      playingRef.current = false;
+      setPlaying(false);
+      const end = Number.isFinite(player.duration) ? player.duration * 1000 : 0;
+      setPlaybackMs(end);
+    };
+    player.onerror = () => {
+      playingRef.current = false;
+      setPlaying(false);
+      setError("Lecture impossible sur cet appareil.");
+    };
+    const started = player.play();
+    if (!started) {
+      playingRef.current = true;
+      setPlaying(true);
+      return;
+    }
+    void started.then(() => {
+      playingRef.current = true;
+      setPlaying(true);
+    }).catch(() => {
+      playingRef.current = false;
+      setPlaying(false);
+      setError("Lecture impossible. Réessayez.");
+    });
   }
 
   function move(next: number) {
@@ -526,6 +611,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
       setError('Enregistrement trop court. Réessayez.');
       return;
     }
+    releasePlayback();
     setPhase('sending');
     setError('');
     const body = new FormData();
@@ -577,8 +663,13 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const prompt = current && language ? promptFor(current, language) : null;
   const alreadySent = Boolean(current && sentSet.has(current.id));
   const navLocked = phase === 'recording' || phase === 'sending' || phase === 'review';
-  const shownMs = phase === 'recording' ? elapsed : durationMs;
-  const waveProgress = Math.min(1, Math.max(0, shownMs / CLIENT_MAX_MS));
+  const shownMs = playing ? playbackMs : phase === 'recording' ? elapsed : durationMs;
+  const waveProgress = playing
+    ? Math.min(1, durationMs > 0 ? playbackMs / durationMs : 0)
+    : Math.min(1, Math.max(0, shownMs / CLIENT_MAX_MS));
+  const timerLabel = playing
+    ? `${clock(playbackMs)} / ${clock(durationMs || CLIENT_MAX_MS)}`
+    : `${clock(phase === 'recording' ? elapsed : durationMs)} / 00:15`;
 
   return (
     <div className="stack-lg">
@@ -776,35 +867,24 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
             <div className="deck">
               <button
                 type="button"
-                className="round"
-                aria-label="Arrêter"
-                disabled={phase !== 'recording'}
-                onClick={stopRecording}
-              >
-                <StopIcon />
-              </button>
-              <button
-                type="button"
                 className="mic"
                 data-on={phase === 'recording' ? '1' : '0'}
-                aria-label={phase === 'recording' ? 'Enregistrement en cours' : 'Enregistrer'}
-                disabled={phase === 'sending' || phase === 'recording'}
-                onClick={() => void startRecording()}
+                aria-label={phase === 'recording' ? 'Arrêter' : 'Enregistrer'}
+                disabled={phase === 'sending'}
+                onClick={() => (phase === 'recording' ? stopRecording() : void startRecording())}
               >
-                <MicIcon />
+                {phase === 'recording' ? <StopIcon /> : <MicIcon />}
               </button>
+              <p className="timer">{timerLabel}</p>
               <button
                 type="button"
-                className="round"
-                aria-label="Recommencer"
-                disabled={phase !== 'review'}
+                className="btn secondary redo"
+                disabled={!blob || phase === 'recording' || phase === 'sending'}
                 onClick={rerecord}
               >
                 <RedoIcon />
+                Recommencer
               </button>
-              <p className="timer">
-                {clock(phase === 'recording' ? elapsed : durationMs)} / 00:15
-              </p>
             </div>
             <p className="help">Sur téléphone, Chrome ou Safari fonctionne mieux que la fenêtre WhatsApp.</p>
             {phase === 'idle' ? (
@@ -825,11 +905,10 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
                 />
               </>
             ) : null}
-            {audioUrl ? <audio ref={audioRef} className="clip" src={audioUrl} playsInline preload="auto" /> : null}
             {phase === 'review' || phase === 'sending' ? (
               <div className="nav-row">
-                <button type="button" className="btn replay" disabled={!audioUrl || phase === 'sending'} onClick={replay}>
-                  Réécouter
+                <button type="button" className="btn replay" disabled={!blob || phase === 'sending'} onClick={replay}>
+                  {playing ? "Arrêter l'écoute" : 'Réécouter'}
                 </button>
                 <button type="submit" className="btn validate" disabled={phase === 'sending'}>
                   {phase === 'sending' ? 'Envoi en cours' : "Valider l'envoi"}
