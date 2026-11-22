@@ -109,11 +109,44 @@ function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
+const WAVE_BARS = 36;
+
 function clock(ms: number): string {
   const seconds = Math.floor(Math.max(0, ms) / 1000);
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
-  return `${minutes}:${String(rest).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+}
+
+function flatWave(height = 0.2): number[] {
+  return Array.from({ length: WAVE_BARS }, () => height);
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M6 11a6 6 0 0 0 12 0" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M12 17v3" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="7" y="7" width="10" height="10" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 8a7 7 0 1 0 1.2 6" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M19 4v4h-4" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
 }
 
 function chooseMime(): string {
@@ -163,8 +196,12 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const [info, setInfo] = useState('');
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [levels, setLevels] = useState<number[]>(() => flatWave());
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const waveRaf = useRef<number | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
@@ -198,8 +235,18 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   }, [blob]);
 
   useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReduceMotion(media.matches);
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
+      if (waveRaf.current !== null) cancelAnimationFrame(waveRaf.current);
+      void audioCtxRef.current?.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
       const rec = recRef.current;
       if (rec && rec.state !== 'inactive') rec.stop();
@@ -228,6 +275,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     setPhase('idle');
     setElapsed(0);
     setDurationMs(0);
+    setLevels(flatWave());
     setError('');
     setInfo('');
   }, [current?.id]);
@@ -235,6 +283,43 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   function stopStream() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+  }
+
+  function stopAnalyser() {
+    if (waveRaf.current !== null) {
+      cancelAnimationFrame(waveRaf.current);
+      waveRaf.current = null;
+    }
+    const context = audioCtxRef.current;
+    audioCtxRef.current = null;
+    if (context && context.state !== 'closed') void context.close();
+  }
+
+  function startAnalyser(stream: MediaStream) {
+    stopAnalyser();
+    if (reduceMotion || typeof AudioContext === 'undefined') return;
+    const context = new AudioContext();
+    audioCtxRef.current = context;
+    void context.resume();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.72;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const step = Math.max(1, Math.floor(data.length / WAVE_BARS));
+    const draw = () => {
+      analyser.getByteFrequencyData(data);
+      const next = [];
+      for (let i = 0; i < WAVE_BARS; i += 1) {
+        let sum = 0;
+        for (let j = 0; j < step; j += 1) sum += data[i * step + j] ?? 0;
+        next.push(Math.min(1, sum / step / 220));
+      }
+      setLevels(next);
+      waveRaf.current = requestAnimationFrame(draw);
+    };
+    draw();
   }
 
   function clearTimer() {
@@ -339,6 +424,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      startAnalyser(stream);
       const mime = chooseMime();
       const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       chunksRef.current = [];
@@ -348,6 +434,7 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
       rec.onstop = () => {
         const type = rec.mimeType || mime || 'audio/webm';
         const ms = Date.now() - startedRef.current;
+        stopAnalyser();
         stopStream();
         clearTimer();
         setDurationMs(ms);
@@ -371,8 +458,9 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
         }
       }, 200);
     } catch {
+      stopAnalyser();
       stopStream();
-      setPhase('idle');
+      setPhase((currentPhase) => (currentPhase === 'recording' ? 'idle' : currentPhase));
       setError(
         "Le micro ne s'ouvre pas. Autorisez-le, ou ouvrez la page dans Chrome ou Safari. Dans WhatsApp : menu, puis Ouvrir dans le navigateur.",
       );
@@ -405,12 +493,21 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   }
 
   function rerecord() {
+    stopAnalyser();
     setBlob(null);
+    setLevels(flatWave());
     setPhase('idle');
     setElapsed(0);
     setDurationMs(0);
     setInfo('');
     setError('');
+  }
+
+  function replay() {
+    const player = audioRef.current;
+    if (!player) return;
+    player.currentTime = 0;
+    void player.play().catch(() => setError('Lecture impossible. Réessayez.'));
   }
 
   function move(next: number) {
@@ -480,6 +577,8 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
   const prompt = current && language ? promptFor(current, language) : null;
   const alreadySent = Boolean(current && sentSet.has(current.id));
   const navLocked = phase === 'recording' || phase === 'sending' || phase === 'review';
+  const shownMs = phase === 'recording' ? elapsed : durationMs;
+  const waveProgress = Math.min(1, Math.max(0, shownMs / CLIENT_MAX_MS));
 
   return (
     <div className="stack-lg">
@@ -638,25 +737,12 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
             {LANGUAGE_LABELS[language]}
             {draft.speakerCode ? `, code ${draft.speakerCode}` : ''}
           </p>
-          <h1>
-            Phrase {safeCursor + 1} sur {total}
-          </h1>
           <p className="meta">{plural(sentCount, 'envoyée', 'envoyées')}</p>
-          <div
-            className="bar"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={total}
-            aria-valuenow={sentCount}
-            aria-label="Phrases envoyées"
-          >
-            <span style={{ width: `${total ? (sentCount / total) * 100 : 0}%` }} />
-          </div>
           <p className="note">{prompt.hint}</p>
           {alreadySent ? (
-            <p className="note">Déjà envoyée. Vous pouvez enregistrer une nouvelle prise. Elle ne compte pas deux fois.</p>
+            <p className="note">Déjà envoyée. Une nouvelle prise ne compte pas deux fois.</p>
           ) : null}
-          <p className="sentence" aria-live="polite">
+          <p className="sentence-pill" aria-live="polite">
             {prompt.text}
           </p>
           <form
@@ -678,22 +764,48 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
                 }}
               />
             </div>
-            {phase !== 'review' && phase !== 'sending' ? (
-              <div className="stack">
-                <button
-                  type="button"
-                  className="btn record-wide"
-                  data-on={phase === 'recording' ? '1' : '0'}
-                  onClick={() => (phase === 'recording' ? stopRecording() : void startRecording())}
-                >
-                  <span className="mark" aria-hidden="true" />
-                  {phase === 'recording' ? 'Arrêter' : alreadySent ? 'Enregistrer à nouveau' : 'Enregistrer'}
-                </button>
-                <p className="timer">
-                  {clock(phase === 'recording' ? elapsed : 0)} / 0:15
-                </p>
-              </div>
-            ) : null}
+            <div className="wave" aria-hidden="true">
+              {levels.map((level, index) => (
+                <span
+                  key={index}
+                  data-on={index / levels.length < waveProgress ? '1' : '0'}
+                  style={{ ['--h' as string]: String(reduceMotion ? 0.35 : level) }}
+                />
+              ))}
+            </div>
+            <div className="deck">
+              <button
+                type="button"
+                className="round"
+                aria-label="Arrêter"
+                disabled={phase !== 'recording'}
+                onClick={stopRecording}
+              >
+                <StopIcon />
+              </button>
+              <button
+                type="button"
+                className="mic"
+                data-on={phase === 'recording' ? '1' : '0'}
+                aria-label={phase === 'recording' ? 'Enregistrement en cours' : 'Enregistrer'}
+                disabled={phase === 'sending' || phase === 'recording'}
+                onClick={() => void startRecording()}
+              >
+                <MicIcon />
+              </button>
+              <button
+                type="button"
+                className="round"
+                aria-label="Recommencer"
+                disabled={phase !== 'review'}
+                onClick={rerecord}
+              >
+                <RedoIcon />
+              </button>
+              <p className="timer">
+                {clock(phase === 'recording' ? elapsed : durationMs)} / 00:15
+              </p>
+            </div>
             <p className="help">Sur téléphone, Chrome ou Safari fonctionne mieux que la fenêtre WhatsApp.</p>
             {phase === 'idle' ? (
               <>
@@ -713,22 +825,16 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
                 />
               </>
             ) : null}
+            {audioUrl ? <audio ref={audioRef} className="clip" src={audioUrl} playsInline preload="auto" /> : null}
             {phase === 'review' || phase === 'sending' ? (
-              <>
-                <p className="help">Écoutez avant d’envoyer.</p>
-                {audioUrl ? (
-                  <audio ref={audioRef} src={audioUrl} controls playsInline preload="auto" />
-                ) : null}
-                <button type="button" className="btn secondary" onClick={() => void audioRef.current?.play()}>
-                  Écouter
+              <div className="nav-row">
+                <button type="button" className="btn replay" disabled={!audioUrl || phase === 'sending'} onClick={replay}>
+                  Réécouter
                 </button>
-                <button type="submit" className="btn primary" disabled={phase === 'sending'}>
-                  {phase === 'sending' ? 'Envoi en cours' : 'Envoyer'}
+                <button type="submit" className="btn validate" disabled={phase === 'sending'}>
+                  {phase === 'sending' ? 'Envoi en cours' : "Valider l'envoi"}
                 </button>
-                <button type="button" className="btn secondary" disabled={phase === 'sending'} onClick={rerecord}>
-                  Recommencer
-                </button>
-              </>
+              </div>
             ) : null}
             <div aria-live="polite">
               {error ? (
@@ -752,8 +858,23 @@ export default function Collector({ phrases }: { phrases: Phrase[] }) {
               </button>
             </div>
             {phase === 'review' ? (
-              <p className="help">Envoyez ou recommencez avant de changer de phrase.</p>
+              <p className="help">Validez l'envoi ou recommencez avant de changer de phrase.</p>
             ) : null}
+            <div className="card-foot">
+              <div
+                className="bar"
+                role="progressbar"
+                aria-valuemin={1}
+                aria-valuemax={total}
+                aria-valuenow={safeCursor + 1}
+                aria-label="Position dans les phrases"
+              >
+                <span style={{ width: `${total ? ((safeCursor + 1) / total) * 100 : 0}%` }} />
+              </div>
+              <p>
+                Phrase {safeCursor + 1} sur {total}
+              </p>
+            </div>
           </form>
           <p className="help">Vous pouvez fermer la page. Rouvrez le même lien sur ce téléphone pour continuer.</p>
         </section>

@@ -306,7 +306,7 @@ export default function AdminPanel() {
               <div className="btn-row">
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn validate"
                   disabled={pendingId === rec.id || rec.status === 'keep'}
                   onClick={() => void mark(rec, 'keep')}
                 >
