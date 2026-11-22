@@ -1,0 +1,921 @@
+openapi: 3.0.3
+
+info:
+  title: KwèGbaTché — API Backend
+  version: 0.1.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  description: |
+    Contrat d'API du backend KwèGbaTché (GPU Challenge 2026).
+
+    Livrable **L5** du cahier des charges — rédigé **avant** le code (sam. 21 nov., v0).
+    Chaque opération référence les exigences du CdC qu'elle implémente (EF-xx / ENF-xx).
+
+    ## Principes du contrat
+    - **Le backend décide, le front affiche.** Aucune logique financière côté client (ENF-01).
+    - **Une seule forme de réponse** (`DialogTurn`) pour les tours vocaux (`/dialog/turns`)
+      et les actions boutons (`/dialog/actions`) : le front n'a qu'un seul écran à gérer.
+    - **Aucune donnée personnelle** : numéros fictifs uniquement (ENF-02) ; les
+      transcriptions ne sont jamais journalisées (ENF-13).
+    - Tous les textes passent par des `message_key` du catalogue i18n fr/fon/yor (§5.8) ;
+      le champ `text` (français interpolé) est fourni par commodité.
+    - La langue d'un tour vocal est celle de la **session** : elle pilote le routage
+      ASR (fr → Whisper, fon → MMS, yor → meilleur des deux — §7 du CdC).
+
+servers:
+  - url: http://127.0.0.1:3030/api/v1
+    description: Développement local (Express / Docker Compose / Prism Mock)
+
+security:
+  - SessionAuth: []
+  - {} # Autorise les appels sans header pour /health et /sessions
+
+tags:
+  - name: Session
+    description: Création de session et langue (EF-01, EF-19)
+  - name: Dialogue
+    description: Tours de parole vocaux et actions boutons (cœur du prototype)
+  - name: Portefeuille
+    description: Données du portefeuille fictif pour l'affichage (EF-10)
+  - name: Médias
+    description: Fichiers audio TTS générés
+  - name: Démo
+    description: Outils de démonstration (EF-15)
+  - name: Ops
+    description: Supervision
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # SESSIONS
+  # ---------------------------------------------------------------------------
+
+  /sessions:
+    post:
+      tags: [Session]
+      operationId: createSession
+      summary: Crée une session de dialogue — EF-01
+      description: |
+        La session mémorise côté serveur la langue choisie et l'état du dialogue.
+        En démo, `user_id` est optionnel : il vaut par défaut l'utilisateur de
+        référence du seed (« Mama Rosine »).
+      security: [] # Pas besoin de X-Session-Id pour créer une session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreate'
+      responses:
+        '201':
+          description: Session créée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /sessions/{sessionId}/language:
+    patch:
+      tags: [Session]
+      operationId: setLanguage
+      summary: Change la langue sans perdre l'opération en cours — EF-19
+      description: |
+        L'état du dialogue est conservé. Si un récapitulatif de transfert était en
+        attente de confirmation, il est **relu dans la nouvelle langue** avant toute
+        confirmation (§5.8) : la réponse contient alors un `turn` complet, identique
+        à la réponse d'un tour de dialogue.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [language]
+              properties:
+                language:
+                  $ref: '#/components/schemas/Language'
+      responses:
+        '200':
+          description: Langue mise à jour (+ récapitulatif éventuel relu).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LanguageChanged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # DIALOGUE — le cœur du prototype
+  # ---------------------------------------------------------------------------
+
+  /dialog/turns:
+    post:
+      tags: [Dialogue]
+      operationId: submitVoiceTurn
+      summary: Tour de parole vocal — EF-02, EF-03, EF-11
+      description: |
+        **Endpoint principal.** Reçoit l'audio du micro et renvoie la réponse
+        complète (texte, audio TTS, affichage visuel, boutons éventuels).
+
+        Orchestration interne : ASR → NLU → logique métier / machine à états → TTS,
+        avec timeouts par service (ASR 6 s, NLU 1 s, TTS 4 s — ENF-11).
+
+        Contraintes d'entrée (ENF-15) :
+        - audio ≤ 15 s ;
+        - formats acceptés : `audio/wav`, `audio/webm`, `audio/ogg` (Opus, cf. ENF-05) ;
+        - 30 requêtes/minute/session (429 au-delà).
+
+        Modes dégradés (ENF-05) :
+        - TTS indisponible → `reply.audio_url = null`, le front affiche le texte ;
+        - ASR indisponible ou 2 échecs de compréhension → `fallback_required = true`,
+          le front DOIT afficher les boutons (EF-16, §5.6).
+
+        Conseil front : timeout client à ~10 s (budget p95 de bout en bout = 8 s, §6.1).
+      parameters:
+        - $ref: '#/components/parameters/SessionIdHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [audio]
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Enregistrement micro (≤ 15 s).
+            encoding:
+              audio:
+                contentType: audio/wav, audio/webm, audio/ogg
+      responses:
+        '200':
+          description: Résultat du tour de parole.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DialogTurn'
+              examples:
+                recapTransfert:
+                  $ref: '#/components/examples/TransferRecapTurn'
+                solde:
+                  $ref: '#/components/examples/BalanceTurn'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /dialog/actions:
+    post:
+      tags: [Dialogue]
+      operationId: submitAction
+      summary: Action bouton / clavier de secours — EF-16, EF-20, EF-21
+      description: |
+        Équivalent tactile d'un tour vocal : boutons Oui/Non, annulation à tout
+        moment (EF-20), choix d'un contact ambigu, saisie du PIN fictif (ENF-14),
+        saisie d'un montant au clavier.
+
+        **Idempotence (EF-21, §5.5)** : l'action `confirm` DOIT renvoyer
+        l'`idempotency_key` reçue dans `operation` lors du récapitulatif.
+        Une requête rejouée avec la même clé renvoie le résultat déjà enregistré,
+        **sans nouveau débit** (double clic, double « oui », retry réseau).
+
+        La réponse est le même schéma `DialogTurn` que `/dialog/turns`.
+      parameters:
+        - $ref: '#/components/parameters/SessionIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRequest'
+      responses:
+        '200':
+          description: Résultat de l'action (même forme qu'un tour vocal).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DialogTurn'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ---------------------------------------------------------------------------
+  # PORTEFEUILLE FICTIF
+  # ---------------------------------------------------------------------------
+
+  /wallet/summary:
+    get:
+      tags: [Portefeuille]
+      operationId: getWalletSummary
+      summary: Solde et budget pour l'affichage visuel — EF-10
+      description: |
+        Données du portefeuille fictif de l'utilisateur de la session. Le front
+        les affiche en grands chiffres avec pictogrammes (ENF-06). Aucune donnée
+        réelle (ENF-02).
+      parameters:
+        - $ref: '#/components/parameters/SessionIdHeader'
+      responses:
+        '200':
+          description: État courant du portefeuille fictif.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # MÉDIAS
+  # ---------------------------------------------------------------------------
+
+  /audio/{audioId}:
+    get:
+      tags: [Médias]
+      operationId: getAudio
+      summary: Sert un fichier audio de réponse TTS
+      description: |
+        Les audios sont **temporaires** et supprimés en fin de session (voix =
+        donnée personnelle, ENF-03). Une ressource supprimée renvoie `410 Gone` :
+        le front doit alors se rabattre sur le texte de `reply`.
+      parameters:
+        - name: audioId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Flux audio.
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  # ---------------------------------------------------------------------------
+  # DÉMO & OPS
+  # ---------------------------------------------------------------------------
+
+  /demo/reset:
+    post:
+      tags: [Démo]
+      operationId: resetDemo
+      summary: Réinitialise le portefeuille fictif à l'état de référence — EF-15
+      description: |
+        Restaure solde, contacts, historique, budgets et supprime les opérations
+        en cours. Indispensable pour répéter la démo. Actif uniquement si
+        `DEMO_MODE=true` côté serveur (sinon 403).
+      responses:
+        '200':
+          description: Portefeuille réinitialisé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /health:
+    get:
+      tags: [Ops]
+      operationId: getHealth
+      summary: Santé du backend et des services ML
+      description: Permet au front d'afficher le mode dégradé (boutons si ASR down).
+      security: []
+      responses:
+        '200':
+          description: État des services.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+# =============================================================================
+# COMPOSANTS
+# =============================================================================
+
+components:
+
+  securitySchemes:
+    SessionAuth:
+      type: apiKey
+      in: header
+      name: X-Session-Id
+      description: Identifiant de session retourné par POST /sessions.
+
+  parameters:
+    SessionIdPath:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SessionIdHeader:
+      name: X-Session-Id
+      in: header
+      required: true
+      description: Identifiant de session retourné par `POST /sessions`.
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    # --- Énumérations métier -------------------------------------------------
+
+    Language:
+      type: string
+      enum: [fr, fon, yor]
+      description: Langues supportées (§4 — aucune autre langue dans le MVP).
+
+    Intent:
+      type: string
+      description: Intentions reconnues par le NLU (EF-04).
+      enum:
+        - demander_frais
+        - consulter_solde
+        - consulter_budget
+        - preparer_transfert
+        - confirmer
+        - annuler
+        - aide
+        - hors_domaine
+
+    DialogState:
+      type: string
+      description: |
+        États de la machine à états serveur (ENF-01). L'état `executed` n'existe
+        pas ici : il est porté par `operation.status` ; le dialogue retourne à IDLE.
+      enum:
+        - IDLE
+        - AWAITING_CLARIFICATION   # contact ambigu ou montant manquant (scén. 3, étape 2)
+        - AWAITING_CONFIRMATION    # récapitulatif lu, attente du « oui » (EF-08)
+        - AWAITING_PIN             # montant au-dessus du plafond → PIN fictif (ENF-14)
+
+    # --- Session -------------------------------------------------------------
+
+    SessionCreate:
+      type: object
+      required: [language]
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+        user_id:
+          type: string
+          description: Optionnel en démo ; défaut = utilisateur de référence du seed.
+
+    Session:
+      type: object
+      required: [session_id, user_id, language, created_at]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+        language:
+          $ref: '#/components/schemas/Language'
+        created_at:
+          type: string
+          format: date-time
+
+    LanguageChanged:
+      type: object
+      required: [session_id, language]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        language:
+          $ref: '#/components/schemas/Language'
+        turn:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DialogTurn'
+
+    # --- Tour de dialogue ----------------------------------------------------
+
+    DialogTurn:
+      type: object
+      required: [trace_id, state, reply, visual, alerts, fallback_required]
+      properties:
+        trace_id:
+          type: string
+          format: uuid
+          description: Identifiant de bout en bout pour les logs et la latence (ENF-13).
+        state:
+          $ref: '#/components/schemas/DialogState'
+        heard:
+          type: object
+          nullable: true
+          description: Ce que l'ASR a compris. null pour une action bouton.
+          properties:
+            transcript:
+              type: string
+              description: Affichable (« j'ai entendu… »), jamais journalisé (ENF-13).
+            lang_detected:
+              $ref: '#/components/schemas/Language'
+            asr_confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+        nlu:
+          type: object
+          nullable: true
+          description: Intention et entités extraites. null pour une action bouton.
+          properties:
+            intent:
+              $ref: '#/components/schemas/Intent'
+            confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+              description: Pilote reformulation / « je n'ai pas compris » (§5.6, seuils 0,80 / 0,50).
+            entities:
+              $ref: '#/components/schemas/Entities'
+        reply:
+          $ref: '#/components/schemas/Reply'
+        visual:
+          $ref: '#/components/schemas/Visual'
+        alerts:
+          type: array
+          description: Alertes anti-arnaque déclenchées sur ce tour (§5.7). Vide si RAS.
+          items:
+            $ref: '#/components/schemas/Alert'
+        operation:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Operation'
+        fallback_required:
+          type: boolean
+          description: |
+            true après 2 échecs de compréhension ou si le micro/ASR est indisponible :
+            le front DOIT afficher boutons pictogrammes + clavier numérique (EF-16, §5.6).
+        latency_ms:
+          $ref: '#/components/schemas/LatencyBreakdown'
+
+    Entities:
+      type: object
+      description: Entités extraites par le NLU (EF-05).
+      properties:
+        amount:
+          type: integer
+          description: Montant en FCFA, y compris dicté en toutes lettres.
+        recipient_name:
+          type: string
+          description: Nom tel que dicté (avant résolution dans les contacts).
+        period:
+          type: string
+          enum: [jour, semaine, mois]
+          description: Pour consulter_budget (« cette semaine », « du mois »).
+        operation_type:
+          type: string
+          enum: [envoi, retrait]
+          description: Pour demander_frais (« frais pour un retrait de… »).
+
+    Reply:
+      type: object
+      required: [message_key, text, lang, audio_url]
+      properties:
+        message_key:
+          type: string
+          example: transfer.recap
+          description: Clé du catalogue i18n fr/fon/yor (§5.8) — aucun texte en dur.
+        text:
+          type: string
+          description: Texte traduit, variables déjà interpolées ({montant}, {destinataire}).
+        lang:
+          $ref: '#/components/schemas/Language'
+        audio_url:
+          type: string
+          nullable: true
+          example: /api/v1/audio/9b2f4c.wav
+          description: null si le TTS est indisponible → le front affiche le texte (ENF-05).
+
+    Visual:
+      type: object
+      required: [type]
+      description: |
+        Affichage simplifié piloté par le backend : pictogramme + grands chiffres
+        (ENF-06). Le front rend un composant par `type`, sans logique métier.
+      properties:
+        type:
+          type: string
+          enum:
+            - message             # message simple (ex. « je n'ai pas compris »)
+            - fees                # annonce des frais (scénario 1)
+            - balance             # solde (scénario 2)
+            - budget              # dépenses + budget restant (scénario 2)
+            - transfer_recap      # récapitulatif avant confirmation (scénario 3)
+            - transfer_receipt    # confirmation d'exécution (vert, ENF-06)
+            - transfer_cancelled  # annulation / expiration (rouge, ENF-06)
+            - choice              # désambiguïsation (ex. plusieurs « Koffi »)
+            - pin_prompt          # saisie du PIN fictif (ENF-14)
+        headline:
+          type: string
+          example: "5 100 F"
+          description: Valeur principale affichée en très grands chiffres (ENF-06).
+        amount:
+          type: integer
+        fee:
+          type: integer
+        total:
+          type: integer
+        balance:
+          type: integer
+        spent:
+          type: integer
+        remaining:
+          type: integer
+        recipient:
+          type: string
+        options:
+          type: array
+          description: |
+            Boutons à afficher : Oui/Non du récapitulatif, choix de contact,
+            boutons de secours (Frais / Solde / Envoyer). Vaut [] si aucun.
+          items:
+            $ref: '#/components/schemas/VisualOption'
+
+    VisualOption:
+      type: object
+      required: [label, action]
+      properties:
+        label:
+          type: string
+          example: "Oui"
+        action:
+          type: string
+          description: Action à renvoyer dans `POST /dialog/actions`.
+          enum: [confirm, cancel, select_contact, submit_pin, pick_amount, pick_intent]
+        contact_id:
+          type: string
+          description: Présent si action = select_contact.
+        amount:
+          type: integer
+          description: Présent si action = pick_amount.
+        intent:
+          $ref: '#/components/schemas/Intent'
+
+    Operation:
+      type: object
+      required: [idempotency_key, status, amount, fee, total, recipient, expires_at]
+      description: Transfert fictif préparé côté serveur (§5.5).
+      properties:
+        idempotency_key:
+          type: string
+          format: uuid
+          description: Clé unique à renvoyer pour confirmer — EF-21.
+        status:
+          type: string
+          enum: [pending, executed, cancelled, expired]
+        amount:
+          type: integer
+        fee:
+          type: integer
+        total:
+          type: integer
+        recipient:
+          type: object
+          required: [contact_id, name]
+          properties:
+            contact_id:
+              type: string
+            name:
+              type: string
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiration ~30 s sans confirmation → rien n'est débité (§5.5).
+
+    Alert:
+      type: object
+      required: [rule, severity, message_key]
+      description: Règle anti-arnaque déclenchée (§5.7 — AR-03 est bloquante).
+      properties:
+        rule:
+          type: string
+          enum: [AR-01, AR-02, AR-03, AR-04, AR-05]
+        severity:
+          type: string
+          enum: [warn, block]
+        message_key:
+          type: string
+          example: alert.new_recipient
+
+    ActionRequest:
+      type: object
+      required: [action]
+      description: |
+        Champs requis selon l'action :
+        - `confirm` / `cancel` → `idempotency_key` (obligatoire)
+        - `select_contact` → `contact_id`
+        - `submit_pin` → `idempotency_key` + `pin`
+        - `pick_amount` → `amount`
+        - `pick_intent` → `intent`
+      properties:
+        action:
+          type: string
+          enum: [confirm, cancel, select_contact, submit_pin, pick_amount, pick_intent]
+        idempotency_key:
+          type: string
+          format: uuid
+        contact_id:
+          type: string
+        pin:
+          type: string
+          pattern: '^[0-9]{4}$'
+          description: PIN fictif à 4 chiffres (ENF-14) — jamais vocal dans le MVP.
+        amount:
+          type: integer
+          minimum: 1
+          maximum: 500000
+          description: Bornes de démo (ENF-15).
+        intent:
+          $ref: '#/components/schemas/Intent'
+
+    # --- Portefeuille / supervision ------------------------------------------
+
+    WalletSummary:
+      type: object
+      required: [user, balance, currency]
+      properties:
+        user:
+          type: object
+          required: [display_name]
+          properties:
+            display_name:
+              type: string
+              example: Mama Rosine
+        balance:
+          type: integer
+          example: 42500
+        budget:
+          type: object
+          nullable: true
+          properties:
+            period:
+              type: string
+              enum: [semaine, mois]
+            limit:
+              type: integer
+            spent:
+              type: integer
+            remaining:
+              type: integer
+            exceeded:
+              type: boolean
+              description: true → alerte douce affichée par le front (§5.3).
+        currency:
+          type: string
+          example: XOF
+
+    Health:
+      type: object
+      required: [status, version, services]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+          example: 0.1.0
+        services:
+          type: object
+          properties:
+            asr:
+              $ref: '#/components/schemas/ServiceStatus'
+            nlu:
+              $ref: '#/components/schemas/ServiceStatus'
+            tts:
+              $ref: '#/components/schemas/ServiceStatus'
+
+    ServiceStatus:
+      type: string
+      enum: [up, down]
+
+    LatencyBreakdown:
+      type: object
+      description: Durées mesurées par étape — alimente le budget de latence (§6.1).
+      properties:
+        asr_ms:
+          type: integer
+        nlu_ms:
+          type: integer
+        backend_ms:
+          type: integer
+        tts_ms:
+          type: integer
+        total_ms:
+          type: integer
+
+    # --- Erreurs ---------------------------------------------------------------
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message_key, message, trace_id]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - SESSION_NOT_FOUND
+                - SESSION_EXPIRED
+                - AUDIO_TOO_LONG
+                - AUDIO_TOO_LARGE
+                - UNSUPPORTED_AUDIO_FORMAT
+                - OPERATION_EXPIRED
+                - OPERATION_NOT_PENDING
+                - INVALID_PIN
+                - RATE_LIMITED
+                - ASR_UNAVAILABLE
+                - NLU_UNAVAILABLE
+                - TTS_UNAVAILABLE
+                - DEMO_MODE_DISABLED
+                - INTERNAL_ERROR
+            message_key:
+              type: string
+              description: Clé i18n pour que le front traduise l'erreur (§5.8).
+            message:
+              type: string
+              description: Texte français par défaut (secours).
+            trace_id:
+              type: string
+              format: uuid
+
+  # --- Réponses d'erreur réutilisables ---------------------------------------
+
+  responses:
+    BadRequest:
+      description: Requête invalide (champ manquant, montant hors bornes…).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Action interdite (ex. `/demo/reset` hors mode démo).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ressource introuvable (session, audio…).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: |
+        Ressource expirée : opération dont le délai de confirmation de ~30 s est
+        dépassé (§5.5), ou audio supprimé en fin de session (ENF-03).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: Fichier audio trop volumineux (ENF-15).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Audio exploitable mais non conforme (durée > 15 s, format — ENF-15).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Plus de 30 requêtes/minute sur la session (ENF-15).
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Secondes avant la prochaine requête autorisée.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Service ML indisponible après retry — le front bascule en mode dégradé (ENF-05, ENF-11).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  # --- Exemples (utilisés par le mock et les tests) ----------------------------
+
+  examples:
+    TransferRecapTurn:
+      summary: Récapitulatif de transfert — scénario 3, étape 4 (avec alerte AR-01)
+      value:
+        trace_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        state: AWAITING_CONFIRMATION
+        heard:
+          transcript: "envoie cinq mille francs à koffi"
+          lang_detected: fr
+          asr_confidence: 0.91
+        nlu:
+          intent: preparer_transfert
+          confidence: 0.94
+          entities:
+            amount: 5000
+            recipient_name: Koffi
+        reply:
+          message_key: transfer.recap
+          text: "Vous allez envoyer 5 000 F à Koffi. Frais : 100 F. Total : 5 100 F. Dites OUI pour confirmer ou NON pour annuler."
+          lang: fr
+          audio_url: /api/v1/audio/9b2f4c.wav
+        visual:
+          type: transfer_recap
+          headline: "5 100 F"
+          amount: 5000
+          fee: 100
+          total: 5100
+          recipient: Koffi
+          options:
+            - { label: "Oui", action: confirm }
+            - { label: "Non", action: cancel }
+        alerts:
+          - { rule: AR-01, severity: warn, message_key: alert.new_recipient }
+        operation:
+          idempotency_key: 3f6f2b62-4a1e-4c7d-9e2a-1b8f0d5c6a77
+          status: pending
+          amount: 5000
+          fee: 100
+          total: 5100
+          recipient: { contact_id: ct_koffi_1, name: Koffi }
+          expires_at: "2026-11-22T10:15:30Z"
+        fallback_required: false
+        latency_ms: { asr_ms: 1180, nlu_ms: 74, backend_ms: 132, tts_ms: 880, total_ms: 2266 }
+
+    BalanceTurn:
+      summary: Consultation de solde — scénario 2
+      value:
+        trace_id: a1b2c3d4-0000-4000-8000-abcdef123456
+        state: IDLE
+        heard:
+          transcript: "combien il me reste"
+          lang_detected: fr
+          asr_confidence: 0.96
+        nlu:
+          intent: consulter_solde
+          confidence: 0.98
+          entities: {}
+        reply:
+          message_key: wallet.balance
+          text: "Il vous reste 42 500 F sur votre compte."
+          lang: fr
+          audio_url: /api/v1/audio/77c1d2.wav
+        visual:
+          type: balance
+          headline: "42 500 F"
+          balance: 42500
+          options: []
+        alerts: []
+        operation: null
+        fallback_required: false
+        latency_ms: { asr_ms: 980, nlu_ms: 60, backend_ms: 45, tts_ms: 700, total_ms: 1785 }

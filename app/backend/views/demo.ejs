@@ -1,0 +1,147 @@
+<section class="glass">
+  <!-- En-tête : Titre + Sélecteur de Langue + Reset BDD -->
+  <div class="demo-header">
+    <div>
+      <h1 class="demo-title">🎮 Studio Démo API</h1>
+      <p class="muted small">KwèGbaTché v<%= version %> — Trace Session : <code><%= traceId %></code></p>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <div class="lang-switch" role="tablist" aria-label="Langue">
+        <button class="lang-btn active" data-lang="fr">🇫🇷 FR</button>
+        <button class="lang-btn"        data-lang="fon">🇧🇯 FON</button>
+        <button class="lang-btn"        data-lang="yor">🇳🇬 YOR</button>
+      </div>
+      <button class="btn btn-danger-soft small" id="btn-reset-demo" title="Réinitialiser le portefeuille fictif">
+        🔄 Reset BDD
+      </button>
+    </div>
+  </div>
+
+  <!-- En-tête Contextuel : Persona & Machine à États -->
+  <div class="demo-context-bar">
+    <div>
+      👤 <strong>Persona :</strong> Mama Rosine &nbsp;|&nbsp; 
+      💰 <strong>Solde :</strong> <span id="context-balance" class="highlight-balance">42 500 XOF</span>
+    </div>
+    <div>
+      🤖 <strong>État Serveur :</strong> <span id="context-state" class="state-badge">IDLE</span> &nbsp;|&nbsp; 
+      🗝️ <strong>Clé :</strong> <code id="context-key" class="small muted">Aucune</code>
+    </div>
+  </div>
+
+  <!-- Navigation par Onglets -->
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="pipeline"  role="tab">🎙️ Tour Vocal (ASR/NLU)</button>
+    <button class="tab"        data-tab="fees"      role="tab">🧾 Scén. 1 : Frais</button>
+    <button class="tab"        data-tab="balance"   role="tab">💰 Scén. 2 : Solde</button>
+    <button class="tab"        data-tab="transfer"  role="tab">💸 Scén. 3 : Transfert</button>
+    <button class="tab"        data-tab="antifraud" role="tab">🛡️ Anti-Arnaque</button>
+    <button class="tab"        data-tab="tts"       role="tab">🔊 Synthèse TTS</button>
+  </nav>
+
+  <!-- PANNEAU 1 : PIPELINE VOCAL (ACTIF AU DÉPART) -->
+  <div class="panel active" data-panel="pipeline">
+    <p class="muted small" style="margin-bottom:1rem;">
+      Test du pipeline complet (<code>POST /api/v1/dialog/turns</code>). Capture micro directe ou fichier audio.
+    </p>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+      <button class="btn btn-primary" id="rec-start">🎙️ Enregistrer Micro</button>
+      <button class="btn btn-stop" id="rec-stop" disabled>⏹️ Stopper</button>
+      <input type="file" id="asr-file" accept="audio/*" class="btn btn-secondary">
+    </div>
+    <audio id="asr-preview" controls style="margin-top:1rem; display:none; width:100%;"></audio>
+  </div>
+
+  <!-- PANNEAU 2 : SCÉNARIO 1 - FRAIS -->
+  <div class="panel" data-panel="fees">
+    <label class="field">
+      <span>Simuler une demande de frais</span>
+      <textarea id="fees-text" rows="2">Combien coûtent les frais pour envoyer 10000 francs ?</textarea>
+    </label>
+    <button class="btn btn-primary" data-call="fees">Calculer les Frais (Grille Fictive)</button>
+  </div>
+
+  <!-- PANNEAU 3 : SCÉNARIO 2 - SOLDE -->
+  <div class="panel" data-panel="balance">
+    <p class="muted small" style="margin-bottom:1rem;">Consulte le solde et les dépenses cumulées de la semaine.</p>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+      <button class="btn btn-primary" data-call="balance">Consulter le Solde</button>
+      <button class="btn btn-secondary" data-call="budget">Consulter le Budget Semaine</button>
+    </div>
+  </div>
+
+  <!-- PANNEAU 4 : SCÉNARIO 3 - TRANSFERT -->
+  <div class="panel" data-panel="transfer">
+    <div class="transfer-grid">
+      <div>
+        <h4 style="margin-bottom:0.75rem; font-size:0.9rem;">1. Préparation (Machine d'État)</h4>
+        <label class="field"><span>Destinataire</span><input id="tr-dest" value="Koffi"></label>
+        <label class="field"><span>Montant (XOF)</span><input id="tr-amount" type="number" value="5000"></label>
+        <button class="btn btn-primary" data-call="transfer-prep">1. Préparer le Transfert</button>
+      </div>
+      <div style="border-left: 1px solid var(--glass-border); padding-left: 1.5rem;">
+        <h4 style="margin-bottom:0.75rem; font-size:0.9rem;">2. Confirmation Vocale / Bouton (O4)</h4>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+          <button class="btn btn-success" id="btn-confirm-op" data-call="transfer-confirm" disabled>✅ Dites "OUI"</button>
+          <button class="btn btn-danger"  id="btn-cancel-op"  data-call="transfer-cancel"  disabled>❌ Dites "NON"</button>
+        </div>
+        <button class="btn btn-warning small" id="btn-idempotency-test" data-call="transfer-double-click" disabled>
+          ⚡ Test Double Confirmation (Idempotence EF-21)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANNEAU 5 : ANTI-ARNAQUE -->
+  <div class="panel" data-panel="antifraud">
+    <p class="muted small" style="margin-bottom:1rem;">Déclenchez les règles de sécurité du CdC §5.7 :</p>
+    <div class="antifraud-grid">
+      <button class="btn btn-outlined"   data-ar="AR-01">⚠️ AR-01 : Nouveau Destinataire</button>
+      <button class="btn btn-outlined"   data-ar="AR-02">⚠️ AR-02 : Montant Inhabituel</button>
+      <button class="btn btn-danger-soft" data-ar="AR-03">🚫 AR-03 : Solde Insuffisant</button>
+      <button class="btn btn-outlined"   data-ar="AR-04">🚨 AR-04 : Urgence ("Vite !")</button>
+      <button class="btn btn-danger-soft" data-ar="AR-05">🔐 AR-05 : Demande de Code PIN</button>
+    </div>
+  </div>
+
+  <!-- PANNEAU 6 : DIRECT TTS -->
+  <div class="panel" data-panel="tts">
+    <label class="field">
+      <span>Texte à synthétiser (MMS)</span>
+      <textarea id="tts-text" rows="2">Mi do gbe do kwè gba tché ji.</textarea>
+    </label>
+    <button class="btn btn-primary" data-call="tts">Générer l'audio TTS</button>
+    <audio id="tts-out" controls style="margin-top:1rem; display:none; width:100%;"></audio>
+  </div>
+
+  <!-- ZONE DE SORTIE : MOBILE VS JSON -->
+  <div class="demo-split-view">
+    
+    <!-- Rendu Mobile -->
+    <div class="mobile-sim-card">
+      <div class="sim-header">
+        <span>📱 Écran Mobile (Mama Rosine)</span>
+        <span id="sim-lang-badge" class="state-badge">FR</span>
+      </div>
+      <div id="visual-card" class="sim-body">
+        <span class="muted small">En attente d'une commande vocale ou action...</span>
+      </div>
+      <audio id="reply-audio-player" controls style="width:100%; margin-top:0.75rem; display:none;"></audio>
+    </div>
+
+    <!-- Inspecteur JSON -->
+    <div class="response-block">
+      <div class="response-head">
+        <span class="small muted">🔍 Inspecteur API</span>
+        <div id="latency-breakdown">
+          <span id="latency-badge" class="latency-badge">— ms</span>
+        </div>
+      </div>
+      <pre id="response-json" class="response-json">{}</pre>
+    </div>
+
+  </div>
+</section>
+
+<script src="/js/demo.js"></script>

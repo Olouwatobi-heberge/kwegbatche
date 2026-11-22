@@ -1,0 +1,18 @@
+{
+  "welcome": "Kú àbɔ̀ {name}, étɛ́ a jló ná bló égbé ?",
+  "balance_recap": "Akwɛ́ e ɖò gblamɛ nú we égbé ɔ bló {balance} Francs CFA.",
+  "budget_info": "Akwɛ́ e a zán ɖò aklúnɔzán gblamɛ é ɔ bló {spent} Francs dó {limit} jí. Akwɛ́ {remaining} Francs wɛ kpò.",
+  "transfer_recap": "A jló ná sɛ́ {amount} Francs CFA dó {recipient}. É ná yí zěnmɛ́ {fee} Francs, bɔ bǐbló tɔn ná nyí {total} Francs CFA. A sɔgbe ná a ?",
+  "transfer_success": "A sɛ́ {amount} Francs CFA dó {recipient} bɔ é yì ganji. Akwɛ́ e kpò ɖò alɔ towe mɛ ɔ bló {newBalance} Francs CFA.",
+  "transfer_cancelled": "È gbɔ́n akwɛ́ sɛ́dó ɔ jí. È ɖè akwɛ́ ɖebǔ sín alɔ towe mɛ ǎ.",
+  "error_insufficient_balance": "Akwɛ́ towe kpé ǎ : {balance} Francs CFA wɛ ɖò gblamɛ nú we, é kpé ná sɛ́ {amount} Francs kpo zěnmɛ́ {fee} Francs kpo ǎ.",
+  "error_invalid_amount": "Akwɛ́ e a ɖɔ ɔ sɔgbe ǎ. Kɛnklɛ́n ɖɔ akwɛ́ sín 100 káká jɛ 500 000 Francs CFA tɛ́ntín.",
+  "error_contact_not_found": "Un mɔ nyikɔ {recipient} ɖò xɔ́ntɔn towe lɛ mɛ ǎ.",
+  "clarify_contact": "Mɛ gègé wɛ ɖó nyikɔ nɛ ɔ : {matches}. Mɛ̌ tɛ́ a jló ná sɛ́ akwɛ́ ɔ dó ?",
+  "clarify_amount": "Francs CFA nabi a jló ná sɛ́ dó {recipient} ?",
+  "fallback_rephrase": "Un sè nǔ e a ɖɔ ɔ ganji ǎ. A sixú ɖɔ : Akwɛ́ nabi un ɖó, alǒ Sɛ́ 5000 Francs dó Koffi.",
+  "warning_unknown_contact": "Hẹn xomɛ : {recipient} kún ɖò xɔ́ntɔn towe lɛ mɛ ó. Lin tamɛ ganji cobó ná sɔgbe.",
+  "warning_high_amount": "Hẹn xomɛ : akwɛ́ gègé {amount} Francs CFA wɛ a jló ná sɛ́dó.",
+  "warning_urgency": "Hẹn xomɛ : ma xwlɛ́kán ó. Kpɔ́n mɛ e a jló ná sɛ́ akwɛ́ ɔ dó é ganji.",
+  "alert_pin_request": "Gbɛxixlɛ́ kútúkútú : Ma ná gbéɖé gbetakɛ́n towe alǒ code PIN mɛɖé ó ! Mɛ ɖebǔ kún ná byɔ́ we gbéɖé ó."
+}

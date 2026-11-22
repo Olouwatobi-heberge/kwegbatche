@@ -1,0 +1,39 @@
+{
+  "name": "kwegbatche_backend",
+  "version": "1.0.0",
+  "description": "KwèGbaTché est le projet de l'équipe du même nom pour le **GPU Challenge 2026** (Epitech Bénin, UDU Technologies, Alliance Fintech UEMOA, Payfonte). Il répond au **cas d'usage n° 2** : permettre à un utilisateur de comprendre ses frais, consulter un budget ou un solde, et préparer un transfert en parlant dans une langue locale.",
+  "keywords": [
+    "Finance",
+    "tech",
+    "langue",
+    "local"
+  ],
+  "license": "MIT",
+  "author": "",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "npm run test:unit & npm run test:integration",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "db:seed": "node src/db/seed.js",
+    "lint:openapi": "redocly lint openapi.yaml",
+    "smoke": "node scripts/smoke.js"
+  },
+  "dependencies": {
+    "axios": "^1.21.1",
+    "better-sqlite3": "^13.2.0",
+    "cors": "^2.8.6",
+    "ejs": "^7.0.2",
+    "express": "^5.3.0",
+    "express-ejs-layouts": "^2.5.1",
+    "morgan": "^1.12.1",
+    "multer": "^2.5.0",
+    "uuid": "^14.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

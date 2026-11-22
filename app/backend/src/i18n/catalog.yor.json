@@ -1,0 +1,18 @@
+{
+  "welcome": "Ẹ n lẹ o {name}, kí lẹ fẹ́ ṣe lónìí ?",
+  "balance_recap": "Owo ti o wa ninu apo rẹ jẹ {balance} Francs CFA.",
+  "budget_info": "Lọ́sẹ̀ yìí, ẹ ti ná {spent} Francs ninu {limit} Francs. Owo ti o kù jẹ {remaining} Francs.",
+  "transfer_recap": "Ẹ fẹ́ fi {amount} Francs CFA ránṣẹ́ sí {recipient}. Owo iṣẹ́ jẹ {fee} Francs, gbogbo rẹ̀ papọ̀ jẹ {total} Francs CFA. Ṣe ki n tẹsiwaju ?",
+  "transfer_success": "A ti fi {amount} Francs CFA ránṣẹ́ sí {recipient} pẹlu aṣeyọri. Owo ti o kù ninu apo rẹ jẹ {newBalance} Francs CFA.",
+  "transfer_cancelled": "A ti fagilé ifiranṣẹ owo náà. A kò yọ owo kankan kuro ninu apo rẹ.",
+  "error_insufficient_balance": "Owo kò to : Owo ti o wa ninu apo rẹ jẹ {balance} Francs CFA, kò to lati fi {amount} Francs ati owo iṣẹ́ {fee} Francs ránṣẹ́.",
+  "error_invalid_amount": "Iye owo ti ẹ tọka kò tọna. Ẹ jọ̀wọ́ sọ iye owo láàrin 100 sí 500 000 Francs CFA.",
+  "error_contact_not_found": "N kò ri orukọ {recipient} ninu iwe olubasọrọ rẹ.",
+  "clarify_contact": "Ọpọlọpọ eniyan lo ni orukọ yẹn : {matches}. Ta ni pato ti ẹ fẹ́ fi owo ránṣẹ́ sí ?",
+  "clarify_amount": "Iye Francs CFA melo ni ẹ fẹ́ fi ránṣẹ́ sí {recipient} ?",
+  "fallback_rephrase": "N kò gbọ́ ọ̀rọ̀ rẹ daradara. Ẹ le sọ pe : Elo lo wa ninu apo mi, tabi Fi 5000 Francs ránṣẹ́ sí Koffi.",
+  "warning_unknown_contact": "Ikilọ : {recipient} kò si ninu awọn olubasọrọ rẹ. Ẹ rii daju pe nọmba náà tọna ki ẹ to tẹsiwaju.",
+  "warning_high_amount": "Ikilọ : ẹ fẹ́ fi iye owo nla pupọ {amount} Francs CFA ránṣẹ́.",
+  "warning_urgency": "Ikilọ : ẹ fura, ẹ ma ṣe kanju. Ẹ rii daju ẹni ti ẹ fẹ́ fi owo ránṣẹ́ sí.",
+  "alert_pin_request": "Ikilọ aabo : Ẹ ma ṣe fi koodu aṣiri tabi PIN rẹ fun ẹnikẹni ! Ko si oṣiṣẹ ti yoo beere koodu rẹ lae."
+}

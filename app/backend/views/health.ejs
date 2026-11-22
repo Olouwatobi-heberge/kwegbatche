@@ -1,0 +1,30 @@
+<section class="glass">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:0.5rem;">
+    <h1 style="margin:0;">Santé du service</h1>
+    <span id="global-status" class="status-pill up">
+      <span class="status-dot"></span> opérationnel
+    </span>
+  </div>
+
+  <p class="muted small">
+    Vue temps réel des micro-services · refresh automatique toutes les 10s
+  </p>
+
+  <div class="services-grid" id="services-grid">
+    <% Object.entries(services).forEach(([name, status]) => { %>
+      <div class="service-card">
+        <div class="service-name"><%= name.toUpperCase() %></div>
+        <span class="status-pill <%= status === 'up' ? 'up' : 'down' %>">
+          <span class="status-dot"></span> <%= status %>
+        </span>
+      </div>
+    <% }) %>
+  </div>
+
+  <div class="actions" style="margin-top:2rem;">
+    <a href="/" class="btn">← Retour</a>
+    <a href="/api/v1/health" class="btn" target="_blank" rel="noopener">Voir le JSON</a>
+  </div>
+</section>
+
+<script src="/js/health.js"></script>
