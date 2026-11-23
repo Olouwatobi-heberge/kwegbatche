@@ -1,0 +1,370 @@
+openapi: 3.0.3
+info:
+  title: KwèGbaTché — Microservices ML GPU (ASR / NLU / TTS)
+  version: 0.1.0
+  description: |
+    Spécification de l'interface entre le Backend Orchestrateur Node.js et les moteurs IA GPU (FastAPI / PyTorch).
+
+    ## Principes directeurs :
+    - **Stateless & Déterministe** : Les microservices ML ne conservent aucun état de session.
+    - **Conformité RGPD / ENF-13** : Zéro journalisation de l'audio brut ou des transcriptions textuelles sur le GPU.
+    - **Budget de Latence (§6.1, ENF-11)** :
+      - `ASR` : Timeout strict 6 000 ms (Cible GPU < 1 500 ms)
+      - `NLU` : Timeout strict 1 000 ms (Cible GPU < 150 ms)
+      - `TTS` : Timeout strict 4 000 ms (Cible GPU < 1 200 ms)
+
+servers:
+- url: http://127.0.0.1:8000
+  description: Microservices ML Locaux (FastAPI / Docker GPU unique)
+- url: http://127.0.0.1:8001
+  description: Microservice Dédié ASR
+- url: http://127.0.0.1:8002
+  description: Microservice Dédié NLU
+- url: http://127.0.0.1:8003
+  description: Microservice Dédié TTS
+
+tags:
+- name: ASR
+  description: Reconnaissance Vocale Multilingue (MMS / Whisper)
+- name: NLU
+  description: Compréhension du Langage & Extraction d'Entités (CamemBERT / AfroXLMR / Regex)
+- name: TTS
+  description: Synthèse Vocale Text-to-Speech (facebook/mms-tts-fon, mms-tts-yor)
+- name: Ops
+  description: Supervision de la santé GPU et des modèles
+
+paths:
+
+  # ===========================================================================
+  # 1. RECONNAISSANCE VOCALE (ASR)
+  # ===========================================================================
+  /asr:
+    post:
+      tags: [ ASR ]
+      operationId: transcribeSpeech
+      summary: Transcription audio -> texte multilingue (FR / FON / YOR)
+      description: |
+        Prend un flux binaire audio (enregistrement micro du téléphone ≤ 15s) et
+        renvoie le texte transcrit avec le niveau de confiance et la langue détectée.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ audio ]
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Fichier audio (WAV 16kHz mono recommandé, WebM ou OGG Opus).
+                lang:
+                  $ref: '#/components/schemas/Language'
+                  description: Langue cible suggérée par la session (fon, yor, fr).
+      responses:
+        '200':
+          description: Audio transcrit avec succès.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsrResponse'
+              examples:
+                fonTransfer:
+                  value:
+                    text: "Sɛ caki atɔ́ɔ́n nǔ Amina"
+                    confidence: 0.94
+                    lang_detected: "fon"
+                    latency_ms: 680
+                frSolde:
+                  value:
+                    text: "Je veux voir mon solde s'il vous plaît"
+                    confidence: 0.98
+                    lang_detected: "fr"
+                    latency_ms: 450
+        '400':
+          $ref: '#/components/responses/MlBadRequest'
+        '422':
+          $ref: '#/components/responses/MlUnprocessable'
+        '500':
+          $ref: '#/components/responses/MlInternalError'
+
+  # ===========================================================================
+  # 2. COMPRÉHENSION DU LANGAGE NATUREL (NLU)
+  # ===========================================================================
+  /nlu:
+    post:
+      tags: [ NLU ]
+      operationId: extractIntentAndEntities
+      summary: Analyse sémantique -> Intention et Entités (Montant, Destinataire)
+      description: |
+        Prend un texte transcrit (ou saisi au clavier) et renvoie l'intention
+        reconnue avec les créneaux (slots/entities) résolus en valeurs normalisées.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NluRequest'
+      responses:
+        '200':
+          description: Intention et entités extraites.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NluResponse'
+              examples:
+                fonTransfert:
+                  value:
+                    intent: "preparer_transfert"
+                    confidence: 0.96
+                    entities:
+                      amount: 5000
+                      recipient_name: "Amina"
+                      period: null
+                      operation_type: "envoi"
+                    latency_ms: 45
+                yorSolde:
+                  value:
+                    intent: "consulter_solde"
+                    confidence: 0.92
+                    entities: {}
+                    latency_ms: 32
+        '400':
+          $ref: '#/components/responses/MlBadRequest'
+        '500':
+          $ref: '#/components/responses/MlInternalError'
+
+  # ===========================================================================
+  # 3. SYNTHÈSE VOCALE (TTS)
+  # ===========================================================================
+  /tts:
+    post:
+      tags: [ TTS ]
+      operationId: synthesizeSpeech
+      summary: Synthèse Vocale -> Flux Audio WAV
+      description: |
+        Génère un fichier audio WAV naturel à partir d'un texte dans l'une des 3 langues cibles.
+        Utilise les modèles MMS-TTS (Fongbé / Yorùbá) et VITS / FastSpeech2 (Français).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TtsRequest'
+      responses:
+        '200':
+          description: Fichier audio synthétisé (WAV 16kHz / 22kHz mono).
+          headers:
+            X-Latency-Ms:
+              schema:
+                type: integer
+              description: Temps d'inférence GPU mesuré en millisecondes.
+            Content-Type:
+              schema:
+                type: string
+                example: "audio/wav"
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/MlBadRequest'
+        '500':
+          $ref: '#/components/responses/MlInternalError'
+
+  # ===========================================================================
+  # 4. SUPERVISION & SANTÉ GPU
+  # ===========================================================================
+  /health:
+    get:
+      tags: [ Ops ]
+      operationId: getMlHealth
+      summary: Diagnostic du serveur ML et des modèles chargés en VRAM
+      responses:
+        '200':
+          description: Modèles prêts et GPU disponible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MlHealthResponse'
+
+# =============================================================================
+# COMPOSANTS ET SCHÉMAS DE DONNÉES
+# =============================================================================
+components:
+  schemas:
+
+    Language:
+      type: string
+      enum: [ fr, fon, yor ]
+      description: Code ISO normalisé des 3 langues supportées.
+
+    Intent:
+      type: string
+      description: Intention normalisée pour la machine de dialogue KwèGbaTché.
+      enum:
+      - demander_frais
+      - consulter_solde
+      - consulter_budget
+      - preparer_transfert
+      - confirmer
+      - annuler
+      - aide
+      - hors_domaine
+
+    # --- ASR Schemas ---
+    AsrResponse:
+      type: object
+      required: [ text, confidence, lang_detected, latency_ms ]
+      properties:
+        text:
+          type: string
+          description: Transcription brute issue du modèle phonétique/acoustique.
+          example: "Sɛ caki atɔ́ɔ́n nǔ Amina"
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Score de certitude acoustique (0.00 à 1.00).
+          example: 0.94
+        lang_detected:
+          $ref: '#/components/schemas/Language'
+        latency_ms:
+          type: integer
+          description: Temps de calcul GPU en ms.
+          example: 520
+
+    # --- NLU Schemas ---
+    NluRequest:
+      type: object
+      required: [ text ]
+      properties:
+        text:
+          type: string
+          description: Texte d'entrée (phrase prononcée ou saisie).
+          example: "Sɛ caki atɔ́ɔ́n nǔ Amina"
+        lang:
+          $ref: '#/components/schemas/Language'
+          default: fr
+
+    NluResponse:
+      type: object
+      required: [ intent, confidence, entities, latency_ms ]
+      properties:
+        intent:
+          $ref: '#/components/schemas/Intent'
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Certitude de classification d'intention.
+          example: 0.96
+        entities:
+          $ref: '#/components/schemas/Entities'
+        latency_ms:
+          type: integer
+          description: Temps d'inférence NLU en ms.
+          example: 45
+
+    Entities:
+      type: object
+      description: Entités extraites par le NER ou la grammaire locale.
+      properties:
+        amount:
+          type: integer
+          nullable: true
+          description: "Montant normalisé en Francs CFA (XOF). Exemple: caki atɔ́ɔ́n -> 5000."
+        example: 5000
+        recipient_name:
+          type: string
+          nullable: true
+          description: Prénom ou nom du bénéficiaire extrait.
+          example: "Amina"
+        period:
+          type: string
+          nullable: true
+          enum: [ jour, semaine, mois ]
+        operation_type:
+          type: string
+          nullable: true
+          enum: [ envoi, retrait ]
+
+    # --- TTS Schemas ---
+    TtsRequest:
+      type: object
+      required: [ text, lang ]
+      properties:
+        text:
+          type: string
+          description: Texte propre avec diacritiques à vocaliser.
+          example: "A jlo ná sɛ flán 5000 dó Amina."
+        lang:
+          $ref: '#/components/schemas/Language'
+        speed:
+          type: number
+          default: 1.0
+          description: Vitesse de lecture (0.8 à 1.2).
+
+    # --- Ops Schemas ---
+    MlHealthResponse:
+      type: object
+      required: [ status, gpu_available, models_loaded ]
+      properties:
+        status:
+          type: string
+          enum: [ ready, warming_up, error ]
+        gpu_available:
+          type: boolean
+          example: true
+        gpu_device:
+          type: string
+          example: "NVIDIA RTX 4090 / T4"
+        vram_used_mb:
+          type: integer
+          example: 3450
+        models_loaded:
+          type: object
+          properties:
+            asr_fon: { type: boolean, example: true }
+            asr_yor: { type: boolean, example: true }
+            asr_fr: { type: boolean, example: true }
+            nlu_classifier: { type: boolean, example: true }
+            tts_fon: { type: boolean, example: true }
+            tts_yor: { type: boolean, example: true }
+
+    # --- Erreurs ---
+    MlError:
+      type: object
+      required: [ error ]
+      properties:
+        error:
+          type: object
+          required: [ code, message ]
+          properties:
+            code:
+              type: string
+              example: "MODEL_INFERENCE_FAILED"
+            message:
+              type: string
+              example: "Audio payload corrupted or unsupported codec."
+
+  responses:
+    MlBadRequest:
+      description: Requête malformée (champs obligatoires absents).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MlError'
+    MlUnprocessable:
+      description: Format audio non décodable par ffmpeg/torchaudio.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MlError'
+    MlInternalError:
+      description: Erreur interne d'inférence GPU (ex. CUDA Out Of Memory).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MlError'

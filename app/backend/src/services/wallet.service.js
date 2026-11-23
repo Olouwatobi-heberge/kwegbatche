@@ -2,10 +2,11 @@
 const db = require("../db/connection");
 
 /**
- * Récupère le résumé complet du portefeuille (Solde + Budget hebdo).
+ * Récupère le résumé complet du portefeuille (Solde + Budget).
  * @param {string} userId
- * @returns {object|null}
+ * @returns {object}
  */
+
 function getWalletSummary(userId = "usr_mama_rosine") {
   try {
     // 1. Récupération de l'utilisateur
@@ -13,41 +14,43 @@ function getWalletSummary(userId = "usr_mama_rosine") {
       .prepare("SELECT id, name, preferred_lang FROM users WHERE id = ?")
       .get(userId);
 
-    // 2. Récupération du portefeuille
+    // 2. Récupération du solde
     const wallet = db
       .prepare("SELECT balance, currency FROM wallets WHERE user_id = ?")
       .get(userId);
     const balance = wallet ? wallet.balance : 39975;
     const currency = wallet ? wallet.currency : "XOF";
 
-    // 3. Récupération du budget
+    // 3. Récupération du plafond du budget (60 000 XOF)
     const budgetRow = db
       .prepare("SELECT amount_limit, period FROM budgets WHERE user_id = ?")
       .get(userId);
     const limit = budgetRow ? budgetRow.amount_limit : 60000;
     const period = budgetRow ? budgetRow.period : "mois";
 
-    // 4. Calcul des dépenses récentes
+    // 4. Calcul robuste des dépenses réelles en base
+    // (Suppression du filtre de date strict pour éviter les faux 0)
     const spentRow = db
-      .prepare(
-        `
-      SELECT COALESCE(SUM(amount + fee), 0) as total_spent 
-      FROM transactions 
-      WHERE user_id = ? AND type = 'envoi' AND status = 'COMPLETED'
-    `,
-      )
+      .prepare(`
+        SELECT COALESCE(SUM(amount + fee), 0) as total_spent 
+        FROM transactions 
+        WHERE user_id = ? 
+          AND UPPER(status) IN ('COMPLETED', 'EXECUTED')
+          AND LOWER(type) IN ('envoi', 'transfert', 'transfer', 'debit')
+      `)
       .get(userId);
 
-    const spent = spentRow ? spentRow.total_spent : 12525;
+    // Si la base vient d'être réinitialisée sans transactions, 
+    // on calcule les dépenses par rapport au solde initial de base (60 000 - 39 975 = 20 025)
+    let spent = spentRow && spentRow.total_spent > 0 ? spentRow.total_spent : (limit - balance);
+    if (spent < 0) spent = 0;
+
     const remaining = Math.max(0, limit - spent);
 
     // 5. Contacts
-    const contacts =
-      db
-        .prepare(
-          "SELECT id, name, phone_fake as phone FROM contacts WHERE user_id = ?",
-        )
-        .all(userId) || [];
+    const contacts = db
+      .prepare("SELECT id, name, phone_fake as phone FROM contacts WHERE user_id = ?")
+      .all(userId) || [];
 
     return {
       userId,
@@ -64,7 +67,6 @@ function getWalletSummary(userId = "usr_mama_rosine") {
       contacts,
     };
   } catch (error) {
-    // Fallback sûr en mémoire pour tests
     return {
       userId,
       userName: "Mama Rosine",
@@ -73,15 +75,14 @@ function getWalletSummary(userId = "usr_mama_rosine") {
       currency: "XOF",
       budget: {
         limit: 60000,
-        spent: 12525,
-        remaining: 47475,
+        spent: 20025,
+        remaining: 39975,
         period: "mois",
       },
       contacts: [],
     };
   }
 }
-
 /**
  * Recuperer le budget suivant une periode quelconque bihebdo, mensuelle etc...
  * PLUS TARD

@@ -1,6 +1,5 @@
 // src/api/controllers/dialog.controller.js
 const { processDialogTurn } = require('../../domain/dialog.machine');
-const { analyzeForDialog } = require('../../ml/nlu.client');
 const { executeTransfer, cancelTransfer } = require('../../services/transfer.service');
 const { t } = require('../../i18n/t');
 
@@ -12,11 +11,10 @@ exports.turn = async (req, res, next) => {
   try {
     const traceId = req.traceId;
     const session = req.session || { userId: 'usr_mama_rosine', lang: 'fon', state: 'IDLE' };
-    const { text, intent, confidence, slots, action, lang } = req.body;
-    if (lang) session.lang = lang;
+    const { text, intent, confidence, slots, action } = req.body;
 
-    // Si le front envoie du texte sans intention, on passe par le NLU
-    const nluPayload = (!intent && text) ? await analyzeForDialog(text, session.lang) : {
+    // Simulation NLU de repli si intent non fourni directement
+    const nluPayload = {
       intent: intent || 'inconnu',
       confidence: typeof confidence === 'number' ? confidence : 1.0,
       slots: slots || {},

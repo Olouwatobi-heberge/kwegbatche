@@ -73,9 +73,6 @@ contacts = (req, res, next) => {
 /**
  * GET api/v1/wallet/budget-week
  */
-budgetWeek = (req, res, next)=>{
 
-
-};
 
 module.exports = { contacts, fees, summary };

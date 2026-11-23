@@ -211,7 +211,7 @@ La persistance repose sur **SQLite 3 via `better-sqlite3`**, configuré en mode 
 │ id (PK)          │       │ id (PK)          │       │ id (PK)           │
 │ user_id (FK)     │       │ wallet_id (FK)   │       │ idempotency_key(U)│
 │ name             │       │ weekly_limit     │       │ status (PREP/DONE)│
-│ phone            │       │ current_spent    │       │ expires_at (TTL)  │
+│ phone_fake       │       │ current_spent    │       │ expires_at (TTL)  │
 └──────────────────┘       └──────────────────┘       └───────────────────┘
 ```
 

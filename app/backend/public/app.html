@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KwèGbaTché — Assistant Mobile Money Vocal</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Top Bar -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">🎙️</div>
+        <div>
+          <h1>KwèGbaTché</h1>
+          <p class="subtitle">MoMo Vocal Bénin</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Badge Mode Secours / ML GPU -->
+        <div id="engineBadge" class="badge badge-secours" title="Indicateur de backend IA">
+          <span class="badge-dot"></span>
+          <span id="engineBadgeText">Mode Secours (Mock)</span>
+        </div>
+
+        <!-- Sélecteur de langue -->
+        <select id="langSelect" class="lang-selector">
+          <option value="fon" selected>🇧🇯 Fongbé</option>
+          <option value="yor">🇳🇬 Yorùbá</option>
+          <option value="fr">🇫🇷 Français</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Wallet Card -->
+    <section class="wallet-card">
+      <div class="wallet-header">
+        <span class="wallet-label">Solde Disponible</span>
+        <button id="toggleBalanceBtn" class="btn-icon" title="Afficher/Masquer">👁️</button>
+      </div>
+      <div class="wallet-balance">
+        <span id="balanceValue">39 975</span>
+        <span class="currency">XOF</span>
+      </div>
+      
+      <div class="budget-mini-bar">
+        <div class="budget-info">
+          <span>Budget restant ce mois:</span>
+          <strong id="budgetRemainingValue">45 000 XOF</strong>
+        </div>
+        <div class="progress-track">
+          <div id="budgetProgress" class="progress-fill" style="width: 25%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Guide rapide / Déclencheurs de Démo -->
+    <section class="quick-scenarios">
+      <div class="scenarios-title">🎯 Scénarios de Démo Rapides :</div>
+      <div class="scenario-chips">
+        <button class="chip" data-scenario="solde">💰 1. Solde & Frais</button>
+        <button class="chip" data-scenario="budget">📊 2. Budget</button>
+        <button class="chip" data-scenario="transfert">💸 3. Transfert standard</button>
+        <button class="chip chip-danger" data-scenario="urgence">🚨 4. Arnaque (Urgence)</button>
+        <button class="chip chip-warning" data-scenario="inconnu">👤 5. Destinataire Inconnu</button>
+        <button class="chip chip-danger" data-scenario="depassement">🛑 6. Solde Insuffisant</button>
+      </div>
+    </section>
+
+    <!-- Chat & Audio Conversation Stream -->
+    <main class="conversation-feed" id="conversationFeed">
+      <!-- Message de bienvenue -->
+      <div class="msg-bubble msg-bot">
+        <div class="bubble-avatar">🤖</div>
+        <div class="bubble-content">
+          <p id="welcomeMsg">Ku abɔ! Un nyi KwèGbaTché. A jlo na sɛ akkwɛ alǒ kpɔn solde towe a?</p>
+          <span class="msg-time">À l'instant</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Card de confirmation dynamique (Règle O4 / CA-2) -->
+    <div id="confirmationCard" class="confirmation-card hidden">
+      <div class="confirmation-header">
+        <span class="confirmation-icon">⚠️</span>
+        <div>
+          <h4>Confirmation Requise (Règle O4)</h4>
+          <p id="confDetailsText">Voulez-vous envoyer 2 000 XOF à Amina ?</p>
+        </div>
+      </div>
+
+      <!-- Alerte Anti-Arnaque si détectée -->
+      <div id="fraudAlertBox" class="fraud-alert hidden">
+        <span class="alert-icon">🚨</span>
+        <div id="fraudAlertText">Alerte : Présence de mots-clés d'urgence suspecte.</div>
+      </div>
+
+      <div class="confirmation-actions">
+        <button id="btnCancelTransfer" class="btn btn-outline-danger">❌ Annuler</button>
+        <button id="btnConfirmTransfer" class="btn btn-primary">✅ Confirmer le transfert</button>
+      </div>
+      <p class="confirmation-hint">💡 Vous pouvez aussi appuyer sur le micro et dire "Oui / En / Bẹ́ẹ̀ni".</p>
+    </div>
+
+    <!-- Voice Control Area (Bottom Sticky) -->
+    <footer class="voice-footer">
+      
+      <!-- Transcription en direct -->
+      <div id="liveTranscript" class="live-transcript">
+        <span class="transcript-placeholder">Appuyez sur le micro pour parler...</span>
+      </div>
+
+      <!-- Grand Bouton Micro Toggle -->
+      <div class="mic-container">
+        <div id="micRing" class="mic-pulse-ring"></div>
+        <button id="mainMicBtn" class="main-mic-btn" aria-label="Microphone">
+          <svg id="micIcon" viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+          <div id="micSpinner" class="spinner hidden"></div>
+        </button>
+      </div>
+
+      <div class="mic-status-label" id="micStatusLabel">Appuyer pour parler</div>
+
+      <!-- Badge de Latence / Métriques -->
+      <div class="latency-bar">
+        <span>Session: <strong id="sessionTag">...</strong></span>
+        <span>Latence: <strong id="latencyTag">-- ms</strong></span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
