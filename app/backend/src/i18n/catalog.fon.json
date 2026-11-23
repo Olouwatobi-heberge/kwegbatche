@@ -15,7 +15,9 @@
   "transfert": {
     "recap": "A jlo ná sɛ flán {amount} dó {recipient}. Frais nyí flán {fee}, akwɛ bǐ e ná ɖè ɔ nyí flán {total}. A ɖɔ ɛ à?",
     "succes": "Sɛsɛdó flán {amount} tɔn dó {recipient} yì ganji. Wuntun : {ref}.",
-    "annule": "È gbìdí opération ɔ. Akwɛ ɖé kún tɔ́n ɖò compte towe mɛ ó."
+    "annule": "È gbìdí opération ɔ. Akwɛ ɖé kún tɔ́n ɖò compte towe mɛ ó.",
+    "demander_montant": "Kwɛ nabi a jró na sɛ́dó?",
+    "demander_destinataire": "Mɛ̌ ka jró na sɛ́ kwɛ ɔ́ hɛn?"
   },
   "confirmation": {
     "succes": "É nyɔ́, un ɖɔ ɛ ganji.",
@@ -23,8 +25,10 @@
   },
   "antifraude": {
     "bloque": "È gbɛ́ opération ɔ ɖó hihɔ́ wú: {reason}.",
-    "alerte_urgence": "Kpɔ́n ganji : yawu-yawu d'é mɛ. Tuwùn mɛ e ná yí akwɛ ɔ ganji có bó sɛ.",
-    "alerte_pin": "Hihɔ́ : Ma ɖɔ code PIN towe nú mɛɖé gbeɖé ó."
+    "alerte_pin": "Hihɔ́ : Ma ɖɔ code PIN towe nú mɛɖé gbeɖé ó.",
+    "contact_inconnu": "Kpɔ́n bo cɔ́ hwiɖée, mɛ é lɔ kún ɖò xɔ́ntɔn towe lɛ mɛ ó.",
+    "montant_inhabituel": "Kpɔ́n bo cɔ́ hwiɖée, akwɛ é lɔ d'agbá hú éé a nɔ sɛ́dó gbè bǐ gbè ɔ.",
+    "alerte_urgence": "Cɔ́ hwiɖée, ajojotɔ́ lɛ nɔ jló ná yawu bló nǔ. Dɛ̀ bo lɛ́ lin tamɛ ganji."
   },
   "erreurs": {
     "solde_insuffisant": "Akwɛ e ɖò cuenta towe mɛ ɔ kpé ná sɛ flán {amount} (frais: flán {fee}) ǎ. Solde towe nyí flán {balance}.",

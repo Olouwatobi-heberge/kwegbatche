@@ -33,7 +33,7 @@ exports.reset = (req, res, next) => {
       // Re-seed Mama Rosine
       const now = Date.now();
       db.prepare(`
-        INSERT INTO users (id, name, phone_fake, preferred_lang, created_at)
+        INSERT INTO users (id, name, phone, preferred_lang, created_at)
         VALUES ('usr_mama_rosine', 'Mama Rosine', '+229 97 11 22 33', 'fon', ?)
       `).run(now);
 

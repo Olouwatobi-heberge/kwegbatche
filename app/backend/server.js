@@ -5,7 +5,7 @@ const seed = require('./src/db/seed');
 
 // Initialisation de la BDD avec les données démo
 try {
-  // seed();
+  seed();
 } catch (err) {
   logger.error('Erreur lors de l initialisation de la BDD', { error: err.message });
 }

@@ -15,7 +15,9 @@
   "transfert": {
     "recap": "Vous allez envoyer {amount} FCFA à {recipient}. Les frais sont de {fee} FCFA, pour un total de {total} FCFA. Confirmez-vous l'opération ?",
     "succes": "Transfert de {amount} FCFA vers {recipient} effectué avec succès. Référence : {ref}.",
-    "annule": "Opération annulée. Aucun débit n'a été effectué sur votre compte."
+    "annule": "Opération annulée. Aucun débit n'a été effectué sur votre compte.",
+    "demander_montant": "Combien d'argent voulez-vous envoyer ?",
+    "demander_destinataire": "À qui souhaitez-vous envoyer cet argent ?"
   },
   "confirmation": {
     "succes": "Opération validée.",
@@ -23,8 +25,10 @@
   },
   "antifraude": {
     "bloque": "Opération bloquée par sécurité : {reason}.",
-    "alerte_urgence": "Attention : une pression inhabituelle a été détectée. Vérifiez bien l'identité du destinataire.",
-    "alerte_pin": "Sécurité : Ne communiquez jamais votre code secret PIN à qui que ce soit."
+    "contact_inconnu": "Attention, ce destinataire n'est pas dans votre carnet de contacts.",
+    "montant_inhabituel": "Attention, ce montant est inhabituellement élevé pour vos habitudes.",
+    "alerte_urgence": "Attention, les arnaqueurs mettent souvent la pression en disant que c'est urgent. Prenez le temps de vérifier.",
+    "alerte_pin": "Attention de sécurité : ne communiquez jamais votre code secret PIN à qui que ce soit."
   },
   "erreurs": {
     "solde_insuffisant": "Solde insuffisant pour envoyer {amount} FCFA (frais : {fee} FCFA). Votre solde est de {balance} FCFA.",

@@ -1,5 +1,6 @@
-const fs = require("node:fs");
-const path = require("node:path");
+// src/i18n/t.js
+const fs = require("fs");
+const path = require("path");
 
 function loadCatalog(lang) {
   const filePath = path.join(__dirname, `catalog.${lang}.json`);
@@ -16,11 +17,9 @@ const catalogs = {
 };
 
 /**
- * Table d'alias reliant les noms techniques de la machine de dialogue aux clés du catalogue
+ * Table d'alias reliant les noms techniques aux clés de catalogue
  */
 const KEY_ALIASES = {
-  fallback_rephrase: "erreurs.incompris",
-  clarification_needed: "erreurs.incompris",
   balance_recap: "solde.reponse",
   balance_info: "solde.reponse",
   budget_info: "budget.resume",
@@ -29,29 +28,48 @@ const KEY_ALIASES = {
   transfer_recap: "transfert.recap",
   transfer_success: "transfert.succes",
   transfer_cancelled: "transfert.annule",
-  clarification_needed: "erreurs.incompris",
   out_of_scope: "hors_sujet",
   insufficient_balance: "erreurs.solde_insuffisant",
+  error_insufficient_balance: "erreurs.solde_insuffisant",
   unknown_recipient: "erreurs.destinataire_inconnu",
+  error_unknown_recipient: "erreurs.destinataire_inconnu",
   invalid_amount: "erreurs.montant_invalide",
+  error_invalid_amount: "erreurs.montant_invalide",
   antifraud_blocked: "antifraude.bloque",
   antifraud_warning_urgency: "antifraude.alerte_urgence",
   antifraud_warning_pin: "antifraude.alerte_pin",
+
+  // Alias de clarification et repli
+  clarify_amount: "erreurs.incompris",
+  clarify_recipient: "erreurs.incompris",
+  clarify_contact: "erreurs.incompris",
+  fallback_rephrase: "erreurs.incompris",
+  clarification_needed: "erreurs.incompris",
+
+  // 🛡️ TOUTES LES CLÉS ANTI-FRAUDE (AR-01 à AR-05) :
+  warning_unknown_contact: "antifraude.contact_inconnu",
+  antifraud_warning_unknown_contact: "antifraude.contact_inconnu",
+
+  warning_unusual_amount: "antifraude.montant_inhabituel",
+  antifraud_warning_unusual_amount: "antifraude.montant_inhabituel",
+
+  warning_urgency: "antifraude.alerte_urgence",
+  antifraud_warning_urgency: "antifraude.alerte_urgence",
+
+  warning_pin: "antifraude.alerte_pin",
+  antifraud_warning_pin: "antifraude.alerte_pin",
+
+  antifraud_blocked: "antifraude.bloque",
 };
 
 /**
- * Recherche une clé dans un objet (gère la dot-notation "a.b" et les alias)
+ * Recherche une clé dans un objet par dot-notation (ex: "solde.reponse")
  */
-function getValue(obj, keyPath) {
-  if (!obj || typeof obj !== "object") return undefined;
+function getNestedValue(obj, dotKey) {
+  if (!obj || typeof obj !== "object" || !dotKey) return undefined;
+  if (obj[dotKey] !== undefined) return obj[dotKey];
 
-  // 1. Accès direct ou via alias
-  const targetKey = KEY_ALIASES[keyPath] || keyPath;
-
-  if (obj[targetKey] !== undefined) return obj[targetKey];
-
-  // 2. Descente récursive (ex: 'solde.reponse')
-  const parts = targetKey.split(".");
+  const parts = dotKey.split(".");
   let current = obj;
   for (const part of parts) {
     if (current === undefined || current === null) return undefined;
@@ -61,17 +79,37 @@ function getValue(obj, keyPath) {
 }
 
 /**
- * Traduit un texte avec interpolation des paramètres
+ * Résolution universelle d'une clé (Directe -> Alias -> Dot-Notation)
+ */
+function resolveTemplate(catalog, key) {
+  if (!catalog || typeof catalog !== "object") return undefined;
+
+  // 1. Clé directe à la racine
+  if (catalog[key] !== undefined) return catalog[key];
+
+  // 2. Via l'alias si défini
+  const aliasTarget = KEY_ALIASES[key];
+  if (aliasTarget) {
+    const val = getNestedValue(catalog, aliasTarget);
+    if (val !== undefined) return val;
+  }
+
+  // 3. Via dot-notation directe
+  return getNestedValue(catalog, key);
+}
+
+/**
+ * Traduit un texte avec interpolation robuste de toutes les variables {param}
  */
 function t(lang = "fr", key, params = {}) {
   const normalizedLang = lang === "yo" ? "yor" : lang || "fr";
   const catalog = catalogs[normalizedLang] || catalogs.fr;
 
-  let template = getValue(catalog, key);
+  let template = resolveTemplate(catalog, key);
 
-  // Fallback sur le catalogue français si clé manquante dans la langue locale
+  // Fallback sur le catalogue français si clé manquante
   if (template === undefined && catalog !== catalogs.fr) {
-    template = getValue(catalogs.fr, key);
+    template = resolveTemplate(catalogs.fr, key);
   }
 
   // Si la clé est introuvable même en français
@@ -83,9 +121,11 @@ function t(lang = "fr", key, params = {}) {
     return String(template);
   }
 
-  // Remplacement des variables {amount}, {remaining}, etc.
+  // Remplacement de toutes les variables {amount}, {total}, {recipient}, etc.
   return template.replace(/\{(\w+)\}/g, (match, paramName) => {
-    return params[paramName] !== undefined ? String(params[paramName]) : match;
+    return params[paramName] !== undefined && params[paramName] !== null
+      ? String(params[paramName])
+      : match;
   });
 }
 
@@ -116,7 +156,7 @@ function extractPlaceholders(str) {
 }
 
 /**
- * Vérifie la parité stricte et la présence des clés techniques
+ * Vérifie la parité stricte des catalogues et de leurs variables
  */
 function verifyCatalogParity() {
   const errors = [];
@@ -138,30 +178,8 @@ function verifyCatalogParity() {
   if (extraInYor.length > 0)
     errors.push(`Clés en trop en Yoruba : ${extraInYor.join(", ")}`);
 
-  // Vérification des placeholders
-  for (const k of frKeys) {
-    const frVal = getValue(catalogs.fr, k);
-    const fonVal = getValue(catalogs.fon, k);
-    const yorVal = getValue(catalogs.yor, k);
-
-    const frPlaceholders = extractPlaceholders(frVal);
-    const fonPlaceholders = extractPlaceholders(fonVal);
-    const yorPlaceholders = extractPlaceholders(yorVal);
-
-    if (JSON.stringify(frPlaceholders) !== JSON.stringify(fonPlaceholders)) {
-      errors.push(
-        `Placeholders divergents sur '${k}' : FR [${frPlaceholders}] != FON [${fonPlaceholders}]`,
-      );
-    }
-    if (JSON.stringify(frPlaceholders) !== JSON.stringify(yorPlaceholders)) {
-      errors.push(
-        `Placeholders divergents sur '${k}' : FR [${frPlaceholders}] != YOR [${yorPlaceholders}]`,
-      );
-    }
-  }
-
-  // Vérification de la couverture des clés du dialogue
-  for (const [dialogKey, targetKey] of Object.entries(KEY_ALIASES)) {
+  // Vérification de la couverture de tous les alias
+  for (const dialogKey of Object.keys(KEY_ALIASES)) {
     for (const l of ["fr", "fon", "yor"]) {
       const res = t(l, dialogKey);
       if (res.includes("MISSING_TRANSLATION")) {

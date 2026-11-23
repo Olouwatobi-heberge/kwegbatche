@@ -2,8 +2,9 @@
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  phone_fake TEXT UNIQUE NOT NULL,
-  preferred_lang TEXT DEFAULT 'fon',
+  phone TEXT UNIQUE NOT NULL,
+  preferred_lang TEXT DEFAULT 'fon', 
+  pin_demo TEXT,
   created_at INTEGER NOT NULL
 );
 

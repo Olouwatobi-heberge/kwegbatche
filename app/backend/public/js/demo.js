@@ -9,7 +9,6 @@
 
   /* ---------- Éléments DOM Principaux ---------- */
   const outJson = document.getElementById("response-json");
-  const latBadge = document.getElementById("latency-badge");
   const latContainer = document.getElementById("latency-breakdown");
   const visualCard = document.getElementById("visual-card");
   const replyAudio = document.getElementById("reply-audio-player");
@@ -29,7 +28,7 @@
     await updateWalletSummary();
   }
 
-  /* ---------- Client HTTP Centralisé (avec X-Session-Id & TraceId) ---------- */
+  /* ---------- Client HTTP Centralisé ---------- */
   async function apiCall(endpoint, options = {}) {
     const t0 = performance.now();
     const isFormData = options.body instanceof FormData;
@@ -45,7 +44,7 @@
       const res = await fetch(endpoint, { ...options, headers });
       const totalMs = Math.round(performance.now() - t0);
 
-      // Traitement spécial si retour binaire audio (TTS)
+      // Traitement si flux binaire direct (WAV)
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("audio/")) {
         const blob = await res.blob();
@@ -61,7 +60,7 @@
     }
   }
 
-  /* ---------- Mise à jour du Solde Contextuel (Mama Rosine) ---------- */
+  /* ---------- Mise à jour du Solde Contextuel ---------- */
   async function updateWalletSummary() {
     try {
       const res = await fetch("/api/v1/wallet/summary", {
@@ -70,7 +69,7 @@
       if (res.ok) {
         const wallet = await res.json();
         if (elBalance && wallet.balance !== undefined) {
-          elBalance.textContent = `${wallet.balance.toLocaleString()} ${wallet.currency || "XOF"}`;
+          elBalance.textContent = `${wallet.balance.toLocaleString('fr-FR')} ${wallet.currency || "XOF"}`;
         }
       }
     } catch (e) {
@@ -80,18 +79,17 @@
 
   /* ---------- Rendu Visuel, Inspecteur JSON & Latences ---------- */
   function renderResponse(data, totalMs, httpStatus = 200) {
-    // 1. Affichage JSON structuré dans l'inspecteur
+    // 1. Affichage JSON dans l'inspecteur
     if (outJson) {
       outJson.textContent = JSON.stringify(data, null, 2);
     }
 
-    // 2. Décomposition de la Latence (ENF-01 / §6.1)
+    // 2. Décomposition de la Latence (CdC ENF-01)
     if (latContainer) {
       const l = data.latencies || data.latency_ms || {};
       const asr = l.asrMs || l.asr_ms || 0;
       const nlu = l.nluMs || l.nlu_ms || 0;
       const tts = l.ttsMs || l.tts_ms || 0;
-      const isBudgetOk = totalMs <= 5000;
 
       latContainer.innerHTML = `
         <span class="muted small">ASR: ${asr}ms | NLU: ${nlu}ms | TTS: ${tts}ms</span>
@@ -99,14 +97,14 @@
       `;
     }
 
-    // 3. Mise à jour du badge d'état conversationnel
+    // 3. Mise à jour de l'état conversationnel
     const state = data.state || data.nextState || data.dialogState || (data.result?.turn?.nextState) || "IDLE";
     if (elState) {
       elState.textContent = state;
       elState.className = `state-badge state-${state.toLowerCase()}`;
     }
 
-    // 4. Gestion de la clé d'idempotence et des boutons d'action
+    // 4. Gestion de la clé d'idempotence et boutons
     const op = data.preparedOperation || data.operation || data.result?.turn?.preparedOperation;
     if (op?.idempotencyKey || op?.idempotency_key) {
       activePendingKey = op.idempotencyKey || op.idempotency_key;
@@ -129,7 +127,7 @@
       synthesizeAndPlay(replyMsg, currentLang, replyAudio);
     }
 
-    // 6. Rendu de la Carte Mobile Virtuelle
+    // 6. Rendu de l'Écran Mobile Virtuel
     const warnings = data.warnings || data.alerts || data.result?.turn?.warnings || [];
     renderMobileCard({
       state,
@@ -144,27 +142,66 @@
     return ms < 1500 ? "fast" : ms <= 5000 ? "mid" : "slow";
   }
 
-  /* ---------- Synthèse Vocale et Lecture Audio ---------- */
+  /* ---------- Synthèse Vocale & Fallback Web Speech API ---------- */
   async function synthesizeAndPlay(text, lang, audioElement) {
-    if (!text || !audioElement) return;
+    if (!text) return;
     try {
       const res = await fetch("/api/v1/audio/synthesize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, lang })
       });
-      if (res.ok) {
+
+      const isMock = res.headers.get("x-tts-mock") === "true";
+
+      // Si le backend renvoie le mock ou si le fichier est un placeholder sinusoïdal
+      if (isMock || !res.ok) {
+        speakWithBrowser(text, lang);
+        return;
+      }
+
+      if (res.ok && audioElement) {
         const blob = await res.blob();
-        audioElement.src = URL.createObjectURL(blob);
-        audioElement.style.display = "block";
-        audioElement.play().catch(() => {}); // Évite l'erreur autoplay bloqué
+        // Si le blob fait moins de 25 Ko (WAV 1 seconde de fallback), faire parler le navigateur
+        if (blob.size < 25000) {
+          speakWithBrowser(text, lang);
+        } else {
+          audioElement.src = URL.createObjectURL(blob);
+          audioElement.style.display = "block";
+          audioElement.play().catch(() => {});
+        }
       }
     } catch (e) {
-      console.warn("TTS non joué:", e.message);
+      console.warn("TTS distant indisponible -> Synthèse vocale navigateur active :", e.message);
+      speakWithBrowser(text, lang);
     }
   }
 
-  /* ---------- Rendu de l'Écran Mobile Simulé (EF-10, ENF-06) ---------- */
+  /**
+   * Moteur de prononciation vocal local (Web Speech API)
+   */
+  function speakWithBrowser(text, lang = "fon") {
+    if (!("speechSynthesis" in window)) return;
+
+    window.speechSynthesis.cancel(); // Arrêter la phrase précédente
+
+    // Remplacement phonétique pour une diction fluide des caractères spéciaux
+    const cleanedText = text
+      .replace(/[ɖƉ]/g, "d")
+      .replace(/[ɔƆ]/g, "o")
+      .replace(/[ɛƐ]/g, "e")
+      .replace(/[ǔū]/g, "u")
+      .replace(/[ṣ]/g, "sh");
+
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    utterance.rate = 0.90; // Débit posé
+    utterance.pitch = 1.05;
+    utterance.lang = lang === "yor" ? "yo-NG" : "fr-FR";
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  /* ---------- Rendu de l'Écran Mobile Simulé ---------- */
   function renderMobileCard({ state, message, operation, warnings = [], explanation = null }) {
     if (!visualCard) return;
 
@@ -188,7 +225,7 @@
 
       bodyContent = `
         <div class="card-title text-warning">⚠️ Confirmer le transfert</div>
-        <div class="card-headline text-warning">${amt.toLocaleString()} XOF</div>
+        <div class="card-headline text-warning">${amt.toLocaleString('fr-FR')} XOF</div>
         <p class="small muted">Destinataire : <strong>${rec}</strong> (Frais : ${fee} F)</p>
         <p class="small">${message}</p>
         <div class="card-actions mt-2">
@@ -218,7 +255,7 @@
     visualCard.innerHTML = alertHtml + bodyContent;
   }
 
-  /* ---------- Gestion des Onglets & Sélecteur de Langue ---------- */
+  /* ---------- Sélecteurs de Langue & Onglets ---------- */
   document.querySelectorAll(".lang-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".lang-btn").forEach((b) => b.classList.remove("active"));
@@ -244,14 +281,14 @@
 
   /* ---------- Table de Routage des Appels Démo ---------- */
   const calls = {
-    // 1. Calculateur de Frais (EF-12)
+    // 1. Calculateur de Frais
     async fees() {
       const raw = document.getElementById("fees-text")?.value || "5000";
       const amount = parseInt(raw.replace(/\D/g, ""), 10) || 5000;
       await apiCall(`/api/v1/wallet/fees?amount=${amount}`, { method: "GET" });
     },
 
-    // 2. Solde & Budget
+    // 2. Solde
     async balance() {
       await apiCall("/api/v1/dialog/turns", {
         method: "POST",
@@ -263,11 +300,7 @@
       });
     },
 
-    async budget() {
-      await apiCall("/api/v1/wallet/summary", { method: "GET" });
-    },
-
-    // 3. Préparation Transfert (O4 / CA-2)
+    // 3. Préparation Transfert
     async "transfer-prep"() {
       const recipient = document.getElementById("tr-dest")?.value || "Koffi";
       const amount = Number(document.getElementById("tr-amount")?.value) || 5000;
@@ -302,12 +335,10 @@
     // 6. Crash-Test Double Clic Simultané (EF-21 Idempotence)
     async "transfer-double-click"() {
       if (!activePendingKey) {
-        // Si aucune clé en cours, on prépare d'abord un transfert rapide
         await calls["transfer-prep"]();
       }
 
       if (activePendingKey) {
-        // Envoi de DEUX requêtes strictement simultanées avec la même clé
         const req1 = apiCall("/api/v1/dialog/confirm", {
           method: "POST",
           body: JSON.stringify({ idempotencyKey: activePendingKey })
@@ -321,13 +352,12 @@
       }
     },
 
-    // 7. Test Synthèse Vocale (TTS)
+    // 7. Test Synthèse Vocale Manuelle
     async tts() {
-      const text = document.getElementById("tts-text")?.value || "Akwé tché gankpwe afɔtɔn";
-      const audioOut = document.getElementById("tts-out");
-      if (audioOut) {
-        await synthesizeAndPlay(text, currentLang, audioOut);
-      }
+      const inputEl = document.getElementById("tts-text") || document.querySelector("textarea");
+      const text = inputEl ? inputEl.value : "Ðɔ 'Ɛɛn' ná ɖɔ ɛ àló 'Gbìdî' ná bló gbɔ";
+      const audioOut = document.getElementById("tts-out") || replyAudio;
+      await synthesizeAndPlay(text, currentLang, audioOut);
     }
   };
 
@@ -356,18 +386,18 @@
     });
   });
 
-  /* ---------- Réinitialisation Usine de la Base SQLite ---------- */
-  const resetBtn = document.getElementById("btn-reset-demo");
+  /* ---------- Réinitialisation BDD ---------- */
+  const resetBtn = document.getElementById("btn-reset-demo") || document.getElementById("btn-reset-bdd") || document.querySelector(".btn-reset");
   if (resetBtn) {
     resetBtn.addEventListener("click", async () => {
-      if (confirm("Réinitialiser le portefeuille fictif de Mama Rosine (42 500 XOF) ?")) {
+      if (confirm("Réinitialiser la base de données de test (Mama Rosine - 39 975 XOF) ?")) {
         await apiCall("/api/v1/demo/reset", { method: "POST" });
         await updateWalletSummary();
       }
     });
   }
 
-  /* ---------- Capture Audio Microphone (Pipeline ASR -> NLU -> TTS) ---------- */
+  /* ---------- Capture Audio Microphone ---------- */
   const recStart = document.getElementById("rec-start");
   const recStop = document.getElementById("rec-stop");
   const preview = document.getElementById("asr-preview");
@@ -415,7 +445,7 @@
   }
 
   /* ---------- Envoi Fichier Audio Pré-enregistré ---------- */
-  const asrFileInput = document.getElementById("asr-file");
+  const asrFileInput = document.getElementById("asr-file") || document.querySelector('input[type="file"]');
   if (asrFileInput) {
     asrFileInput.addEventListener("change", async (e) => {
       const file = e.target.files[0];

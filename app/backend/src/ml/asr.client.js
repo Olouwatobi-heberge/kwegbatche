@@ -13,8 +13,8 @@ const { startTimer } = require('../observability/latency');
  */
 async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon') {
   const timer = startTimer('asr');
-  const asrUrl = config.ml?.asrUrl || 'http://127.0.0.1:8000/asr';
-  const timeoutMs = config.timeouts?.asr || 6000;
+  const asrUrl = config.mlServices?.asrUrl || 'http://127.0.0.1:8000/asr';
+  const timeoutMs = config.timeouts?.asrMs || 6000;
 
   try {
     const formData = new FormData();
@@ -38,6 +38,7 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon'
     };
   } catch (error) {
     const latency = timer.end();
+    console.warn(`[ASR] service injoignable (${asrUrl}) : ${error.message} -> transcription FACTICE`);
 
     // Repli de secours (Fallback Mock) pour que la démo ne plante jamais sans GPU
     const mockTranscripts = {
