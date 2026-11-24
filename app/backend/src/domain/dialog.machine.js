@@ -162,6 +162,7 @@ function processDialogTurn({ currentState = 'IDLE', session = {}, nlu = {}, acti
     const message = t(lang, 'fees_info', {
       amount,
       fee,
+      total: amount + fee,
       taux: '1%',
       frais: fee
     });

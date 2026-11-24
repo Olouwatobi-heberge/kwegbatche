@@ -36,7 +36,7 @@ function generateSilentWav() {
  */
 async function synthesizeAudio(text, lang = 'fon') {
   const timer = startTimer('tts');
-  const ttsUrl = config.ml?.ttsUrl || 'http://127.0.0.1:8000/tts';
+  const ttsUrl = config.mlServices?.ttsUrl || 'http://127.0.0.1:8000/tts';
   const timeoutMs = config.timeouts?.tts || 4000;
 
   try {

@@ -41,6 +41,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public"))); // CSS / JS / images
 app.use(traceMiddleware);
 
+// Session en mémoire, clé = en-tête X-Session-Id envoyé par public/js/app.js
+const sessions = new Map();
+app.use((req, res, next) => {
+  const sid = String(req.get("X-Session-Id") || "anon").slice(0, 64);
+  if (!sessions.has(sid)) {
+    sessions.set(sid, { userId: "usr_mama_rosine", lang: "fon", state: "IDLE" });
+  }
+  req.session = sessions.get(sid);
+  next();
+});
+
 /* ------------------------------------------------------------------ */
 /*  3. Routes "pages" (HTML rendu via EJS)                             */
 /* ------------------------------------------------------------------ */

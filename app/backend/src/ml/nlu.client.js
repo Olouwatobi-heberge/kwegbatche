@@ -383,6 +383,10 @@ const INTENT_TO_MACHINE = {
   confirmer: "confirmer",
   annuler: "annuler",
   hors_sujet: "hors_sujet",
+  // alias : classifieur de Merveille et OpenAPI ML
+  confirmation: "confirmer",
+  demander_frais: "comprendre_frais",
+  hors_domaine: "hors_sujet",
 };
 
 async function analyzeForDialog(text, lang = "fr") {

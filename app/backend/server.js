@@ -1,3 +1,6 @@
+// Charge .env s'il existe (Node >= 20.12), sans dépendance
+try { process.loadEnvFile(require('path').join(__dirname, '.env')); } catch (_) {}
+
 const app = require('./app');
 const config = require('./src/config');
 const logger = require('./src/observability/logger');
