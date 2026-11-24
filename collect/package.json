@@ -1,0 +1,32 @@
+{
+  "name": "kwegbatche-collect",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prebuild": "node scripts/check-copy.mjs && node scripts/check-csv.mjs",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
+    "fflate": "^0.8.2",
+    "next": "^15.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.7.0"
+  },
+  "overrides": {
+    "postcss": "8.5.33"
+  }
+}
