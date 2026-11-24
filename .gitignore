@@ -68,5 +68,4 @@ Thumbs.db
 *.swp
 fix-nlu-pipeline.patch
 fix-avant-gel.patch
-data.sqlite
-data.sqlite-shm
+data.sqlite*

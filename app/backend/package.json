@@ -15,8 +15,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "npm run test:unit & npm run test:integration",
-    "test:unit": "node --test tests/unit/*.test.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node src/db/seed.js && node --test --test-concurrency=1 tests/unit/*.test.js",
     "test:integration": "node --test tests/integration/*.test.js",
     "db:seed": "node src/db/seed.js",
     "lint:openapi": "redocly lint openapi.yaml",

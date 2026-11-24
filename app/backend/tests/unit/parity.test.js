@@ -47,6 +47,6 @@ describe('🌍 Parité Linguistique des Catalogues (Fon / Yor / Fr)', () => {
       total: 5100
     });
     assert.ok(res.includes('Moussa'), `Moussa introuvable dans: "${res}"`);
-    assert.ok(res.includes('5000') || res.includes('5 000'), `Montant 5000 introuvable dans: "${res}"`);
+    assert.ok(res.replace(/\s/g, '').includes('5000'), `Montant 5000 introuvable dans: "${res}"`);
   });
 });
