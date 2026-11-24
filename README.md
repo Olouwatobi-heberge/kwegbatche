@@ -1,66 +1,128 @@
 # KwèGbaTché
 
-Assistant financier vocal en fon, yoruba et français, conçu pour le mobile money.
+Assistant financier vocal en fon, en yoruba et en français, pour le mobile money. L'utilisateur peut consulter un solde, préparer un transfert vers un contact, comprendre les frais, suivre un budget, et confirmer à la voix avant tout transfert.
 
-KwèGbaTché est le projet de l'équipe du même nom pour le **GPU Challenge 2026** (Epitech Bénin, UDU Technologies, Alliance Fintech UEMOA, Payfonte). Il répond au **cas d'usage n° 2** : permettre à un utilisateur de comprendre ses frais, consulter un budget ou un solde, et préparer un transfert en parlant dans une langue locale.
+Projet de l'équipe KwèGbaTché pour le GPU Challenge 2026 (Epitech Bénin). Le parcours de démonstration s'appuie sur un portefeuille et des contacts fictifs.
 
-Le prototype est une application web avec microphone, branchée sur un **portefeuille fictif**. Aucune opération n'est exécutée sans confirmation vocale.
+## Architecture
 
-## Scénarios
-
-1. **Frais** — expliquer les frais d'une opération dans la langue de l'utilisateur.
-2. **Solde ou budget** — consulter un solde ou un budget sur le portefeuille fictif.
-3. **Transfert** — préparer un transfert, puis le confirmer à la voix avant toute exécution simulée.
-
-## Stack prévue
-
-- **ASR** : Meta MMS et Whisper (Whisper couvre le yoruba et le français, pas le fon).
-- **NLU** : détection d'intentions et extraction de slots (montant, destinataire, type d'opération).
-- **TTS** : Meta MMS (`mms-tts-fon`, `mms-tts-yor`) — licence CC-BY-NC, à signaler clairement.
-- **Backend** : Node.js, API du portefeuille fictif.
-
-## Arborescence
-
-```
-app/frontend/    Interface web et capture micro
-app/backend/     API Node et portefeuille fictif
-ml/asr/          Reconnaissance vocale et fine-tuning
-ml/nlu/          Intentions et slots
-ml/tts/          Synthèse vocale
-data/            Métadonnées et scripts d'accès aux corpus (pas les audios lourds)
-eval/            Baseline, mesures WER/CER, intentions, latence
-docs/            Cahier des charges et documents de projet
-collect/         Collecte de voix (lien public, validation par l'équipe)
+```mermaid
+flowchart TD
+  parler["L'utilisateur parle"]
+  asr["Reconnaissance vocale, MMS, simulée en démo"]
+  intention["Compréhension de l'intention"]
+  slots["Extraction du montant et du destinataire"]
+  confirmation["Confirmation"]
+  reponse["Réponse vocale"]
+  parler --> asr --> intention --> slots --> confirmation --> reponse
 ```
 
-La collecte de voix est dans `collect/`. Mode d'emploi : `collect/README.md`.
+Le serveur de démonstration est `app/backend`. Si le service de reconnaissance ne répond pas, la transcription est factice et le libellé « Reconnaissance vocale simulée (démo) » s'affiche. La compréhension d'intention utilisée par ce parcours est locale (`app/backend/src/ml/nlu.client.js`). La synthèse vocale distante a aussi un repli local si son service est injoignable.
 
-## Reproductibilité
+## Dossiers
 
-Ce dépôt décrit l'architecture, les scripts d'entraînement et d'évaluation, et la façon de relancer les mesures par rapport à une baseline simple.
+- `app/backend/` : API Node.js, base SQLite, page `/app` (`public/app.html`).
+- `app/frontend/` : note sur l'interface. L'écran servi en démo est celui de `app/backend/public/`.
+- `collect/` : collecte de voix en fon, yoruba et français. Mode d'emploi dans `collect/README.md`. Site public : https://kwegbatche-collecte.vercel.app
+- `ml/asr/`, `ml/nlu/`, `ml/tts/` : notes sur la reconnaissance, les intentions et la synthèse.
+- `data/` : métadonnées des corpus. Les fichiers audio lourds ne sont pas versionnés.
+- `eval/` : notes d'évaluation.
+- `docs/` : cahier des charges.
 
-Pour reproduire les résultats :
+## Lancement
 
-1. Cloner ce dépôt.
-2. Suivre les instructions de chaque module (`ml/`, `eval/`) pour installer les dépendances.
-3. Télécharger les corpus depuis leurs sources officielles (voir ci-dessous) : ils ne sont pas versionnés ici.
-4. Lancer les scripts d'évaluation dans `eval/` pour comparer le modèle affiné à la baseline (WER/CER, précision d'intention, F1 des slots, succès de bout en bout, latence).
+Node.js LTS.
 
-Les cibles chiffrées du cahier des charges sont des objectifs, pas des résultats déjà mesurés.
+```bash
+git clone https://github.com/Olouwatobi-heberge/kwegbatche.git
+cd kwegbatche/app/backend
+npm install
+node src/db/seed.js
+npm start
+```
 
-## Données et licences
+Ouvrir http://localhost:3030/app
 
-| Source | Langue | Licence | Usage prévu |
-| --- | --- | --- | --- |
-| [JaimeMaLangue/JML-fon-speech-v1](https://huggingface.co/datasets/JaimeMaLangue/JML-fon-speech-v1) | Fon | CC-BY-SA-4.0 | Corpus principal pour l'ASR fon (attribution et share-alike) |
-| [Common Voice Yoruba](https://commonvoice.mozilla.org/) | Yoruba | CC0 | Corpus public pour l'ASR yoruba |
+Les tests, depuis `app/backend` :
 
-Le projet gouvernemental « J'aime ma langue » annonce un recueil plus large (fon, dendi, bariba, yoruba). À ce jour, seul le corpus fon est publié sur Hugging Face. Le yoruba s'appuie donc sur Common Voice et, le cas échéant, sur des enregistrements de l'équipe.
+```bash
+npm test
+```
 
-Les fichiers audio volumineux, les checkpoints et les secrets (`.env`) ne doivent pas être commités. Voir `data/README.md` et `.gitignore`.
+`npm test` enchaîne les 25 tests unitaires puis les 6 tests d'intégration.
 
-Le code de ce dépôt est sous licence MIT (voir `LICENSE`). Les corpus conservent leurs licences d'origine. Les modèles TTS MMS sont CC-BY-NC.
+Sur un téléphone, le micro du navigateur exige HTTPS :
+
+```bash
+npx cloudflared tunnel --url http://localhost:3030
+```
+
+Ouvrir l'adresse `https` affichée par la commande, en ajoutant `/app`.
+
+Variables facultatives lues par `app/backend/src/config/index.js` (aucune valeur secrète) :
+
+| Variable | Défaut dans le code | Rôle |
+| --- | --- | --- |
+| `PORT` | `3030` | Port du serveur |
+| `ASR_SERVICE_URL` | `http://localhost:5001` | Reconnaissance vocale |
+| `NLU_SERVICE_URL` | `http://localhost:5002` | Service d'intentions prévu dans la configuration |
+| `TTS_SERVICE_URL` | `http://localhost:5003` | Synthèse vocale |
+
+Si `ASR_SERVICE_URL` ne répond pas, le backend journalise une transcription FACTICE et poursuit. Si `TTS_SERVICE_URL` ne répond pas, il renvoie un audio de repli. Le parcours `/app` n'appelle pas `NLU_SERVICE_URL` : l'intention est calculée dans le processus Node.
+
+## Démo
+
+1. Ouvrir `/app` et choisir la langue (fon, yoruba ou français).
+2. Choisir un cas : Solde, Envoyer 5000 à Koffi, ou Frais.
+3. Appuyer sur le micro et parler.
+4. Pour un transfert, confirmer avec le bouton ou avec le micro suivant.
+5. Quand le service vocal est absent, l'interface affiche « Reconnaissance vocale simulée (démo) ».
+
+Sans cas choisi, les tours se succèdent : solde, transfert, frais.
+
+## Résultats
+
+WER du modèle MMS `facebook/mms-1b-all`, sans entraînement, sur 223 enregistrements de la plateforme de collecte (https://kwegbatche-collecte.vercel.app) :
+
+| Langue | WER | CER |
+| --- | --- | --- |
+| Fon | 73,6 % | 32,6 % |
+| Yoruba | 71,3 % | 31,2 % |
+| Français | 45,6 % | 19,5 % |
+
+Classifieur d'intentions (TF-IDF sur les caractères et régression logistique, 7 intentions, validation croisée à 5 plis), comparé à une référence par mots-clés. Les chiffres sont des F1 :
+
+| Langue | Classifieur | Mots-clés |
+| --- | --- | --- |
+| Français | 0,80 | 0,71 |
+| Fon | 0,79 | 0,68 |
+| Yoruba | 0,87 | 0,62 |
+
+Fiche complète : https://docs.google.com/document/d/1m7mdSZtV-G4m_lyVr37vFclvrvBtzOHF5h04W0tsgbk/edit?usp=sharing
+
+Tests automatiques du backend : 25 unitaires et 6 d'intégration.
+
+## Limites
+
+- En démonstration, la reconnaissance vocale est simulée.
+- MMS n'est pas encore affiné : pas d'accès GPU pour cet entraînement.
+- Les enregistrements de la collecte ne sont pas validés à la main.
+- Un locuteur domine en fon et en yoruba.
+- Les textes ont été lus.
+- Les phrases de démonstration sont présentes dans l'entraînement du classifieur.
+- Le portefeuille et les contacts sont fictifs.
+
+## Suite
+
+Affiner les adaptateurs MMS fon et yoruba sur GPU, faire valider les enregistrements par des humains, enregistrer davantage de locuteurs, puis brancher un vrai service de mobile money.
 
 ## Équipe
 
-Équipe **KwèGbaTché**, GPU Challenge 2026.
+GPU Challenge 2026, Epitech Bénin.
+
+- Amos BYLL-CATARIA : modèles vocaux.
+- Merveille GOMEZ : données et classifieur.
+- Andy KOUMAGNON : backend et application.
+- Lovia KOUNOUHO : coordination, script, présentation.
+
+Le code de ce dépôt est sous licence MIT (`LICENSE`).
