@@ -66,3 +66,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+fix-nlu-pipeline.patch
+fix-avant-gel.patch
+data.sqlite
+data.sqlite-shm

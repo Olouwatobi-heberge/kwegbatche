@@ -42,7 +42,7 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon'
 
     // Repli de secours (Fallback Mock) pour que la démo ne plante jamais sans GPU
     const mockTranscripts = {
-      fon: 'Sɛ gankpwe afɔtɔn nǔ Koffi',
+      fon: 'Sɛ caki atɔɔn nǔ Koffi',
       yor: 'Fi ẹgbẹrun marun ranṣẹ si Koffi',
       fr: 'Envoie cinq mille francs à Koffi'
     };
