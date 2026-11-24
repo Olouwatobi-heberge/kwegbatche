@@ -2,16 +2,78 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const config = require('../config');
+const dataset = require('../i18n/utterances.dataset.json');
 const { startTimer } = require('../observability/latency');
+
+const ROTATION = ['consulter_solde', 'preparer_transfert', 'comprendre_frais'];
+
+const SCENARIOS = {
+  consulter_solde: 'consulter_solde',
+  solde: 'consulter_solde',
+  preparer_transfert: 'preparer_transfert',
+  transfert: 'preparer_transfert',
+  comprendre_frais: 'comprendre_frais',
+  frais: 'comprendre_frais',
+  confirmer: 'confirmer',
+  confirm: 'confirmer',
+  annuler: 'annuler',
+  cancel: 'annuler',
+};
+
+// Phrases déjà utilisées par le mock : 5 000 vers Koffi.
+// Le dataset n'a pas cette paire exacte (5 000 va à Amina, Koffi reçoit 10 000).
+const MOCK_TRANSFER = {
+  fr: 'Envoie cinq mille francs à Koffi',
+  fon: 'Sɛ caki atɔɔn nǔ Koffi',
+  yo: 'Fi ẹgbẹrun marun ranṣẹ si Koffi',
+};
+
+function langField(lang) {
+  const key = String(lang || 'fon').toLowerCase();
+  if (key === 'yo' || key === 'yor' || key === 'yoruba') return 'yo';
+  if (key === 'fr' || key === 'fon') return key;
+  return 'fr';
+}
+
+function canonicalScenario(value) {
+  return SCENARIOS[String(value || '').trim().toLowerCase()] || '';
+}
+
+function resolveDemoScenario({ scenario, sessionState, rotationStep = 0 } = {}) {
+  const chosen = canonicalScenario(scenario);
+  const step = Number.isFinite(Number(rotationStep)) ? Number(rotationStep) : 0;
+  if (chosen) return { scenario: chosen, nextStep: step };
+  if (sessionState === 'AWAITING_TRANSFER_CONFIRMATION') {
+    return { scenario: 'confirmer', nextStep: step };
+  }
+  const index = ((step % ROTATION.length) + ROTATION.length) % ROTATION.length;
+  return { scenario: ROTATION[index], nextStep: step + 1 };
+}
+
+function datasetPhrase(intent, field) {
+  const rows = dataset.filter((item) => item.intent === intent);
+  const own = rows.find((item) => item[field] && String(item[field]).trim());
+  if (own) return String(own[field]).trim();
+  const fallback = rows.find((item) => item.fr && String(item.fr).trim());
+  return fallback ? String(fallback.fr).trim() : '';
+}
+
+function mockTranscriptFor(lang, scenario) {
+  const field = langField(lang);
+  const intent = canonicalScenario(scenario) || 'consulter_solde';
+  if (intent === 'preparer_transfert') return MOCK_TRANSFER[field] || MOCK_TRANSFER.fr;
+  return datasetPhrase(intent, field);
+}
 
 /**
  * Transcrit un buffer audio en texte.
  * @param {Buffer} audioBuffer Buffer binaire du fichier audio
  * @param {string} mimeType Type MIME de l'audio
  * @param {string} lang Langue cible ('fon' | 'yor' | 'fr')
- * @returns {Promise<{ text: string, lang: string, confidence: number, durationMs: number }>}
+ * @param {{ scenario?: string, sessionState?: string, rotationStep?: number }} [options]
+ * @returns {Promise<{ text: string, lang: string, confidence: number, durationMs: number, isMock?: boolean, scenario?: string, nextStep?: number }>}
  */
-async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon') {
+async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon', options = {}) {
   const timer = startTimer('asr');
   const asrUrl = config.mlServices?.asrUrl || 'http://127.0.0.1:8000/asr';
   const timeoutMs = config.timeouts?.asrMs || 6000;
@@ -38,23 +100,27 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon'
     };
   } catch (error) {
     const latency = timer.end();
-    console.warn(`[ASR] service injoignable (${asrUrl}) : ${error.message} -> transcription FACTICE`);
-
-    // Repli de secours (Fallback Mock) pour que la démo ne plante jamais sans GPU
-    const mockTranscripts = {
-      fon: 'Sɛ caki atɔɔn nǔ Koffi',
-      yor: 'Fi ẹgbẹrun marun ranṣẹ si Koffi',
-      fr: 'Envoie cinq mille francs à Koffi'
-    };
+    const resolved = resolveDemoScenario(options);
+    const text = mockTranscriptFor(lang, resolved.scenario);
+    console.warn(
+      `[ASR] service injoignable (${asrUrl}) : ${error.message} -> transcription FACTICE (${resolved.scenario})`
+    );
 
     return {
-      text: mockTranscripts[lang] || mockTranscripts.fr,
+      text,
       lang,
       confidence: 0.88,
       durationMs: latency,
-      isMock: true
+      isMock: true,
+      scenario: resolved.scenario,
+      nextStep: resolved.nextStep
     };
   }
 }
 
-module.exports = { transcribeAudio };
+module.exports = {
+  transcribeAudio,
+  mockTranscriptFor,
+  resolveDemoScenario,
+  canonicalScenario,
+};

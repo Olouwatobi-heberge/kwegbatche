@@ -112,6 +112,16 @@
     <!-- Voice Control Area (Bottom Sticky) -->
     <footer class="voice-footer">
       
+      <div class="voice-scenarios">
+        <p class="voice-scenarios-title">Scénario pour le micro</p>
+        <div class="scenario-chips">
+          <button type="button" class="chip" data-voice="consulter_solde">Solde</button>
+          <button type="button" class="chip" data-voice="preparer_transfert">Envoyer 5000 à Koffi</button>
+          <button type="button" class="chip" data-voice="comprendre_frais">Frais</button>
+        </div>
+        <p id="asrMockLabel" class="asr-mock-label hidden">Reconnaissance vocale simulée (démo)</p>
+      </div>
+
       <!-- Transcription en direct -->
       <div id="liveTranscript" class="live-transcript">
         <span class="transcript-placeholder">Appuyez sur le micro pour parler...</span>
