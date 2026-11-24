@@ -79,6 +79,10 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon'
   const timeoutMs = config.timeouts?.asrMs || 6000;
 
   try {
+    // Mode secours : on ne contacte pas le service ASR, on rejoue le cas scripté.
+    if (options.forceMock) {
+      throw new Error('mode secours demandé');
+    }
     const formData = new FormData();
     formData.append('audio', audioBuffer, {
       filename: `audio_${Date.now()}.wav`,
@@ -118,8 +122,28 @@ async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', lang = 'fon'
   }
 }
 
+/**
+ * Traduction française d'une phrase de démo (fon ou yoruba), pour sous-titrer
+ * l'écran devant le jury. Renvoie '' si la phrase n'est pas connue.
+ */
+function frenchFor(text) {
+  const clean = String(text || '').trim();
+  if (!clean) return '';
+  for (const key of Object.keys(MOCK_TRANSFER)) {
+    if (MOCK_TRANSFER[key] === clean) return MOCK_TRANSFER.fr;
+  }
+  const row = dataset.find(
+    (item) =>
+      (item.fon && String(item.fon).trim() === clean) ||
+      (item.yo && String(item.yo).trim() === clean) ||
+      (item.fr && String(item.fr).trim() === clean)
+  );
+  return row && row.fr ? String(row.fr).trim() : '';
+}
+
 module.exports = {
   transcribeAudio,
+  frenchFor,
   mockTranscriptFor,
   resolveDemoScenario,
   canonicalScenario,

@@ -48,6 +48,27 @@
   const latencyTag = document.getElementById('latencyTag');
   const toggleBalanceBtn = document.getElementById('toggleBalanceBtn');
   const asrMockLabel = document.getElementById('asrMockLabel');
+  const langIndicatorName = document.getElementById('langIndicatorName');
+  const secoursPanel = document.getElementById('secoursPanel');
+
+  const LANG_NAMES = { fon: 'Fongbé', yor: 'Yorùbá', fr: 'Français' };
+  const INTENT_NAMES = {
+    consulter_solde: 'solde',
+    transferer: 'transfert',
+    preparer_transfert: 'transfert',
+    comprendre_frais: 'frais',
+    consulter_budget: 'budget',
+    confirmer: 'confirmation',
+    annuler: 'annulation',
+    hors_sujet: 'hors sujet',
+    inconnu: 'inconnue'
+  };
+
+  // Paramètres d'URL : ?lang=fon|yor|fr et ?secours=1
+  const urlParams = new URLSearchParams(window.location.search);
+  const secoursMode = urlParams.get('secours') === '1';
+  const urlLang = urlParams.get('lang');
+  if (urlLang && LANG_NAMES[urlLang]) currentLang = urlLang;
 
   if (sessionTag) sessionTag.textContent = sessionId.slice(0, 11) + '...';
 
@@ -236,7 +257,7 @@
     if (micStatusLabel) micStatusLabel.textContent = "Appuyer pour parler";
 
     const userHeard = data.transcription || data.transcript || cleanSpoken || "Message vocal";
-    appendUserMessage(userHeard);
+    appendUserMessage(userHeard, metaFromPipeline(data));
 
     handleDialogResponse(data);
   }
@@ -410,10 +431,10 @@
     window.speechSynthesis.speak(u);
   }
 
-  function appendUserMessage(txt) {
+  function appendUserMessage(txt, meta) {
     const b = document.createElement('div');
     b.className = 'msg-bubble msg-user';
-    b.innerHTML = `<div class="bubble-avatar">👤</div><div class="bubble-content"><p>${escapeHtml(txt)}</p><span class="msg-time">À l'instant</span></div>`;
+    b.innerHTML = `<div class="bubble-avatar">👤</div><div class="bubble-content"><p>${escapeHtml(txt)}</p>${renderMeta(meta)}<span class="msg-time">À l'instant</span></div>`;
     conversationFeed.appendChild(b);
     conversationFeed.scrollTop = conversationFeed.scrollHeight;
   }
@@ -456,6 +477,7 @@
 
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
+      if (chip.hasAttribute('data-secours')) return;
       const voice = chip.getAttribute('data-voice');
       if (voice) {
         demoScenario = voice;
@@ -472,8 +494,10 @@
   });
 
   if (langSelect) {
-    langSelect.addEventListener('change', (e) => { currentLang = e.target.value; });
+    langSelect.value = currentLang;
+    langSelect.addEventListener('change', (e) => { currentLang = e.target.value; updateLangIndicator(); });
   }
+  updateLangIndicator();
 
   if (toggleBalanceBtn) {
     let hidden = false;
@@ -481,6 +505,121 @@
       hidden = !hidden;
       balanceValue.textContent = hidden ? '••••••' : Number(balanceValue.textContent.replace(/\s/g,'')).toLocaleString('fr-FR');
       toggleBalanceBtn.textContent = hidden ? '🙈' : '👁️';
+    });
+  }
+
+  // Ligne d'information sous la phrase entendue : langue, traduction, intention
+  function metaFromPipeline(data) {
+    if (!data || data.error) return null;
+    return {
+      lang: data.lang || currentLang,
+      translationFr: data.translationFr || '',
+      intent: data.intent || '',
+      intentScore: data.intentScore || null
+    };
+  }
+
+  function formatPercent(value) {
+    return `${Math.round(Number(value) * 100)} %`;
+  }
+
+  function renderMeta(meta) {
+    if (!meta) return '';
+    try {
+      let html = '<span class="msg-meta">';
+      if (meta.lang && LANG_NAMES[meta.lang]) {
+        html += `<span class="lang-tag">${escapeHtml(LANG_NAMES[meta.lang])}</span>`;
+      }
+      if (meta.translationFr) {
+        html += `<span class="msg-translation">En français : ${escapeHtml(meta.translationFr)}</span>`;
+      }
+      const sc = meta.intentScore;
+      if (meta.intent && sc && typeof sc.score === 'number' && isFinite(sc.score)) {
+        const name = INTENT_NAMES[meta.intent] || meta.intent;
+        let line = `Intention : ${name} · ${formatPercent(sc.score)}`;
+        if (sc.score < 0.6 && sc.runnerUp && typeof sc.runnerUpScore === 'number') {
+          line += ` (proche : ${INTENT_NAMES[sc.runnerUp] || sc.runnerUp} ${formatPercent(sc.runnerUpScore)})`;
+        }
+        const tip = `Score calculé sur cette phrase : similarité avec ${sc.references || ''} phrases de référence (fr, fon, yo)`;
+        html += `<span class="msg-intent" title="${escapeHtml(tip)}">${escapeHtml(line)}</span>`;
+      } else if (meta.intent && meta.offline) {
+        html += `<span class="msg-intent">Intention : ${escapeHtml(INTENT_NAMES[meta.intent] || meta.intent)} (rejoué hors ligne)</span>`;
+      }
+      html += '</span>';
+      return html;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function updateLangIndicator() {
+    if (langIndicatorName) langIndicatorName.textContent = LANG_NAMES[currentLang] || currentLang;
+  }
+
+  // 11. Mode secours : rejoue un cas scripté, sans micro.
+  // 1) Essaie le serveur local (transcription simulée forcée).
+  // 2) Si le serveur ne répond pas, rejoue le script hors ligne.
+  async function replaySecours(scenario) {
+    if (isProcessing) return;
+    isProcessing = true;
+    setLoadingState(true);
+    try {
+      const form = new FormData();
+      form.append('audio', new Blob([new Uint8Array(16)], { type: 'audio/wav' }), 'secours.wav');
+      form.append('lang', currentLang);
+      form.append('sessionId', sessionId);
+      form.append('demo_scenario', scenario);
+      form.append('secours', '1');
+      const data = await apiCall('/api/v1/audio/pipeline', { method: 'POST', body: form });
+      const serverOk = data && !data.error && data._httpStatus && data._httpStatus < 400 && data.transcription;
+      setLoadingState(false);
+      if (serverOk) {
+        appendUserMessage(data.transcription, metaFromPipeline(data));
+        handleDialogResponse(data);
+      } else {
+        playOfflineScript(scenario);
+      }
+    } catch (e) {
+      setLoadingState(false);
+      playOfflineScript(scenario);
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  function playOfflineScript(scenario) {
+    const all = window.KWG_SECOURS || {};
+    const byLang = all[currentLang] || all.fr || {};
+    const step = byLang[scenario];
+    if (!step) {
+      appendBotMessage('Cas indisponible hors ligne.');
+      return;
+    }
+    hideConfirmationUI();
+    if (asrMockLabel) asrMockLabel.classList.remove('hidden');
+    if (engineBadge) {
+      engineBadge.className = 'badge badge-secours';
+      engineBadgeText.textContent = 'Hors ligne (script)';
+    }
+    appendUserMessage(step.heard, { lang: currentLang, translationFr: step.fr || '', intent: step.intent, offline: true });
+    appendBotMessage(step.reply);
+    speak(step.reply, currentLang);
+    if (step.yes && step.done) {
+      setTimeout(() => {
+        appendUserMessage(step.yes, { lang: currentLang, intent: 'confirmer', offline: true });
+        appendBotMessage(step.done);
+        speak(step.done, currentLang);
+      }, 2500);
+    }
+  }
+
+  if (secoursMode && secoursPanel) {
+    secoursPanel.classList.remove('hidden');
+    secoursPanel.querySelectorAll('[data-secours]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        replaySecours(btn.getAttribute('data-secours'));
+      });
     });
   }
 

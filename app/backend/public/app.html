@@ -31,10 +31,10 @@
         </div>
 
         <!-- Sélecteur de langue -->
-        <select id="langSelect" class="lang-selector">
-          <option value="fon" selected>🇧🇯 Fongbé</option>
-          <option value="yor">🇳🇬 Yorùbá</option>
-          <option value="fr">🇫🇷 Français</option>
+        <select id="langSelect" class="lang-selector" aria-label="Langue">
+          <option value="fon" selected>Fongbé</option>
+          <option value="yor">Yorùbá</option>
+          <option value="fr">Français</option>
         </select>
       </div>
     </header>
@@ -120,6 +120,17 @@
           <button type="button" class="chip" data-voice="comprendre_frais">Frais</button>
         </div>
         <p id="asrMockLabel" class="asr-mock-label hidden">Reconnaissance vocale simulée (démo)</p>
+        <p id="langIndicator" class="lang-indicator">Langue parlée : <strong id="langIndicatorName">Fongbé</strong></p>
+      </div>
+
+      <!-- Mode secours : visible seulement avec /app?secours=1 -->
+      <div id="secoursPanel" class="secours-panel hidden">
+        <p class="secours-title">Mode secours : rejouer un cas sans micro</p>
+        <div class="scenario-chips">
+          <button type="button" class="chip" data-secours="consulter_solde">Solde</button>
+          <button type="button" class="chip" data-secours="preparer_transfert">Envoyer 5000 à Koffi</button>
+          <button type="button" class="chip" data-secours="comprendre_frais">Frais</button>
+        </div>
       </div>
 
       <!-- Transcription en direct -->
@@ -150,6 +161,7 @@
 
   </div>
 
+  <script src="/js/secours-data.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

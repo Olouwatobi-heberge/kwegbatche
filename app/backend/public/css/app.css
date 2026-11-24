@@ -593,3 +593,59 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+/* Démo jury : langue, confiance de l'intention, mode secours */
+.lang-indicator {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.lang-indicator strong {
+  color: var(--primary-dark);
+}
+.msg-meta {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+.msg-meta .lang-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-weight: 600;
+}
+.msg-meta .msg-translation {
+  display: block;
+  margin-top: 3px;
+  font-style: italic;
+}
+.msg-meta .msg-intent {
+  display: block;
+  margin-top: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.secours-panel {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+.secours-title {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.secours-panel.hidden {
+  display: none;
+}
+.msg-user .bubble-content {
+  min-width: 0;
+  max-width: 100%;
+}

@@ -1,5 +1,6 @@
 // src/api/controllers/audio.controller.js
-const { transcribeAudio } = require("../../ml/asr.client");
+const { transcribeAudio, frenchFor } = require("../../ml/asr.client");
+const { scoreIntent } = require("../../ml/intent.scorer");
 const { analyzeForDialog } = require("../../ml/nlu.client");
 const { synthesizeAudio } = require("../../ml/tts.client");
 const { processDialogTurn } = require("../../domain/dialog.machine");
@@ -96,10 +97,12 @@ exports.pipeline = async (req, res, next) => {
     const lang = req.body.lang || session.lang || "fon";
 
     // 1. Étape ASR (demo_scenario ne sert que si le service est injoignable)
+    const secours = req.body.secours === "1" || req.body.secours === "true";
     const asr = await transcribeAudio(req.file.buffer, req.file.mimetype, lang, {
       scenario: req.body.demo_scenario,
       sessionState: session.state,
       rotationStep: session.mockAsrStep || 0,
+      forceMock: secours,
     });
     if (asr.isMock && typeof asr.nextStep === "number") {
       session.mockAsrStep = asr.nextStep;
@@ -120,11 +123,29 @@ exports.pipeline = async (req, res, next) => {
 
     session.state = turnResult.nextState;
 
+    // Score de confiance calculé (affichage seulement, ne change pas la décision)
+    const scored = scoreIntent(asr.text, nlu.intent);
+    const intentScore = scored
+      ? {
+          intent: scored.intent,
+          score: scored.score,
+          runnerUp: scored.runnerUp,
+          runnerUpScore: scored.runnerUp ? Math.round(scored.scores[scored.runnerUp] * 1000) / 1000 : null,
+          method: scored.method,
+          references: scored.references,
+        }
+      : null;
+    const translationFr = lang === "fr" ? "" : frenchFor(asr.text);
+
     res.json({
       traceId: req.traceId,
       transcription: asr.text,
       asrMock: !!asr.isMock,
       intent: nlu.intent,
+      intentScore,
+      lang,
+      translationFr,
+      secours,
       slots: nlu.slots,
       dialogState: turnResult.nextState,
       replyMessage: turnResult.message,
