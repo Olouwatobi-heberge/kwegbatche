@@ -1,0 +1,22 @@
+[
+    {
+        "min_amount": 1,
+        "max_amount": 2500,
+        "fee": 25
+    },
+    {
+        "min_amount": 2501,
+        "max_amount": 10000,
+        "fee": 100
+    },
+    {
+        "min_amount": 10001,
+        "max_amount": 50000,
+        "fee": 250
+    },
+    {
+        "min_amount": 50001,
+        "max_amount": 500000,
+        "fee": 500
+    }
+]

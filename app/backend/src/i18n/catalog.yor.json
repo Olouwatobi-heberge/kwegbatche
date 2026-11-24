@@ -1,0 +1,41 @@
+{
+  "welcome": "Káàbọ̀ sí KwèGbaTché. Kí ni o fẹ́ ṣe?",
+  "solde": {
+    "reponse": "Ìyókù owó rẹ jẹ́ fránkì CFA {amount}.",
+    "detail": "Owó tí o ní nínú àkáǹtì rẹ jẹ́ fránkì {amount}."
+  },
+  "frais": {
+    "reponse": "Fún ìfiránṣẹ́ fránkì {amount}, frais jẹ́ fránkì {fee}, àpapọ̀ rẹ̀ jẹ́ fránkì {total}.",
+    "gratuit": "Iṣẹ́ yìí kò ní frais kankan (fránkì 0)."
+  },
+  "budget": {
+    "resume": "Budget tó kù fún ọ jẹ́ fránkì {remaining} nínú àpapọ̀ fránkì {total}.",
+    "depenses": "O ti ná fránkì {spent} ní oṣù yìí."
+  },
+  "transfert": {
+    "recap": "O fẹ́ fi fránkì {amount} ránṣẹ́ sí {recipient}. Frais jẹ́ fránkì {fee}, àpapọ̀ owó tí a ó gbà jẹ́ fránkì {total}. Ṣé o fọwọ́ sí i?",
+    "succes": "Ìfiránṣẹ́ fránkì {amount} sí {recipient} ti kẹ́sẹjárí. Nọ́mbà ìdánimọ̀ : {ref}.",
+    "annule": "A ti fagilé iṣẹ́ náà. A kò yọ owó kankan nínú àkáǹtì rẹ.",
+    "demander_montant": "Elo ni o fẹ́ fi ránṣẹ́?",
+    "demander_destinataire": "Ta ni o fẹ́ fi owó náà ránṣẹ́ sí?"
+  },
+  "confirmation": {
+    "succes": "Iṣẹ́ náà ti fẹsẹ̀ múlẹ̀.",
+    "demande": "Sọ 'Bẹ́ẹ̀ni' láti fọwọ́ sí i tàbí 'Fagilé' láti dá a dúró."
+  },
+  "antifraude": {
+    "bloque": "A ti dí iṣẹ́ yìí lọ́wọ́ nítorí ààbò: {reason}.",
+    "alerte_urgence": "Ìkìlọ̀ : Ìkánjú pọ̀jù. Rí i dájú pé o mọ ẹni tí ò ń fi owó ránṣẹ́ sí dáadáa.",
+    "alerte_pin": "Ààbò : Má ṣe sọ nọ́mbà ìkọ̀kọ̀ PIN rẹ fún ẹnikẹ́ni láé.",
+    "contact_inconnu": "Ṣọ́ra, ẹni tí o fẹ́ fi owó ránṣẹ́ sí kò sí nínú àwọn olùbásọ̀rọ̀ rẹ.",
+    "montant_inhabituel": "Ṣọ́ra, owó yìí pọ̀ ju èyí tí o máa ń fi ránṣẹ́ lọ."
+  },
+  "erreurs": {
+    "solde_insuffisant": "Owó inú àkáǹtì rẹ kò tó láti fi fránkì {amount} ránṣẹ́ (frais: fránkì {fee}). Ìyókù owó rẹ jẹ́ fránkì {balance}.",
+    "destinataire_inconnu": "A kò rí orúkọ '{recipient}' nínú àwọn nọ́mbà rẹ.",
+    "montant_invalide": "Iye owó náà kò tọ̀nà. Ó gbọ́dọ̀ kéré tán jẹ́ fránkì 100 kò sì gbọ́dọ̀ ju fránkì 500 000 lọ.",
+    "incompris": "Kò yé mi dáadáa. O lè béèrè fún solde rẹ, frais, budget tàbí fi owó ránṣẹ́.",
+    "idempotence_doublon": "A ti ṣe ìfiránṣẹ́ yìí tẹ́lẹ̀."
+  },
+  "hors_sujet": "KwèGbaTché jẹ́ olùrànlọ́wọ́ Mobile Money. Mo lè ràn ọ́ lọ́wọ́ láti ṣàyẹ̀wò solde, frais, budget tàbí fi owó ránṣẹ́."
+}

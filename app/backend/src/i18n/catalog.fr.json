@@ -1,0 +1,41 @@
+{
+  "welcome": "Bienvenue sur KwèGbaTché. Que souhaitez-vous faire ?",
+  "solde": {
+    "reponse": "Votre solde disponible est de {amount} Francs CFA.",
+    "detail": "Vous avez {amount} FCFA sur votre compte principal."
+  },
+  "frais": {
+    "reponse": "Pour un transfert de {amount} FCFA, les frais sont de {fee} FCFA, soit un total débité de {total} FCFA.",
+    "gratuit": "Cette opération est gratuite (0 FCFA de frais)."
+  },
+  "budget": {
+    "resume": "Votre budget restant est de {remaining} FCFA sur une enveloppe de {total} FCFA.",
+    "depenses": "Vous avez déjà dépensé {spent} FCFA cette période."
+  },
+  "transfert": {
+    "recap": "Vous allez envoyer {amount} FCFA à {recipient}. Les frais sont de {fee} FCFA, pour un total de {total} FCFA. Confirmez-vous l'opération ?",
+    "succes": "Transfert de {amount} FCFA vers {recipient} effectué avec succès. Référence : {ref}.",
+    "annule": "Opération annulée. Aucun débit n'a été effectué sur votre compte.",
+    "demander_montant": "Combien d'argent voulez-vous envoyer ?",
+    "demander_destinataire": "À qui souhaitez-vous envoyer cet argent ?"
+  },
+  "confirmation": {
+    "succes": "Opération validée.",
+    "demande": "Dites 'Oui' pour confirmer ou 'Annuler' pour abandonner."
+  },
+  "antifraude": {
+    "bloque": "Opération bloquée par sécurité : {reason}.",
+    "contact_inconnu": "Attention, ce destinataire n'est pas dans votre carnet de contacts.",
+    "montant_inhabituel": "Attention, ce montant est inhabituellement élevé pour vos habitudes.",
+    "alerte_urgence": "Attention, les arnaqueurs mettent souvent la pression en disant que c'est urgent. Prenez le temps de vérifier.",
+    "alerte_pin": "Attention de sécurité : ne communiquez jamais votre code secret PIN à qui que ce soit."
+  },
+  "erreurs": {
+    "solde_insuffisant": "Solde insuffisant pour envoyer {amount} FCFA (frais : {fee} FCFA). Votre solde est de {balance} FCFA.",
+    "destinataire_inconnu": "Destinataire '{recipient}' introuvable dans votre répertoire.",
+    "montant_invalide": "Montant invalide. Le montant minimum est de 100 FCFA et le maximum est de 500 000 FCFA.",
+    "incompris": "Je n'ai pas bien compris votre demande. Vous pouvez demander votre solde, vos frais, votre budget ou faire un transfert.",
+    "idempotence_doublon": "Cette transaction a déjà été traitée."
+  },
+  "hors_sujet": "Je suis votre assistant financier Mobile Money. Je peux vous aider à consulter votre solde, estimer des frais, suivre votre budget ou envoyer de l'argent."
+}

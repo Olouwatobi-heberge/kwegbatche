@@ -1,0 +1,41 @@
+{
+  "welcome": "Ku do wǎ KwèGbaTché jí. Etɛ a jlo ná bló?",
+  "solde": {
+    "reponse": "Solde towe e ɖò te ɔ nyí flán CFA {amount}.",
+    "detail": "Akwɛ e a ɖó ɖò compte towe mɛ ɔ nyí flán {amount}."
+  },
+  "frais": {
+    "reponse": "Ná sɛsɛdó flán {amount} tɔn, frais ɔ nyí flán {fee}, bɔ bǐ bló flán {total}.",
+    "gratuit": "Azɔ̌ é lɔ kún ɖó frais ɖé ó (flán 0)."
+  },
+  "budget": {
+    "resume": "Budget e kpo nú we ɔ nyí flán {remaining} ɖò flán {total} mɛ.",
+    "depenses": "A ko zán flán {spent} ɖò sùn é lɔ mɛ."
+  },
+  "transfert": {
+    "recap": "A jlo ná sɛ flán {amount} dó {recipient}. Frais nyí flán {fee}, akwɛ bǐ e ná ɖè ɔ nyí flán {total}. A ɖɔ ɛ à?",
+    "succes": "Sɛsɛdó flán {amount} tɔn dó {recipient} yì ganji. Wuntun : {ref}.",
+    "annule": "È gbìdí opération ɔ. Akwɛ ɖé kún tɔ́n ɖò compte towe mɛ ó.",
+    "demander_montant": "Kwɛ nabi a jró na sɛ́dó?",
+    "demander_destinataire": "Mɛ̌ ka jró na sɛ́ kwɛ ɔ́ hɛn?"
+  },
+  "confirmation": {
+    "succes": "É nyɔ́, un ɖɔ ɛ ganji.",
+    "demande": "Ɖɔ 'Ɛɛn' ná ɖɔ ɛ àló 'Gbìdí' ná bló gbɔ."
+  },
+  "antifraude": {
+    "bloque": "È gbɛ́ opération ɔ ɖó hihɔ́ wú: {reason}.",
+    "alerte_pin": "Hihɔ́ : Ma ɖɔ code PIN towe nú mɛɖé gbeɖé ó.",
+    "contact_inconnu": "Kpɔ́n bo cɔ́ hwiɖée, mɛ é lɔ kún ɖò xɔ́ntɔn towe lɛ mɛ ó.",
+    "montant_inhabituel": "Kpɔ́n bo cɔ́ hwiɖée, akwɛ é lɔ d'agbá hú éé a nɔ sɛ́dó gbè bǐ gbè ɔ.",
+    "alerte_urgence": "Cɔ́ hwiɖée, ajojotɔ́ lɛ nɔ jló ná yawu bló nǔ. Dɛ̀ bo lɛ́ lin tamɛ ganji."
+  },
+  "erreurs": {
+    "solde_insuffisant": "Akwɛ e ɖò cuenta towe mɛ ɔ kpé ná sɛ flán {amount} (frais: flán {fee}) ǎ. Solde towe nyí flán {balance}.",
+    "destinataire_inconnu": "Mɛ e nɔ nyí '{recipient}' ɔ kún ɖò répertoire towe mɛ ó.",
+    "montant_invalide": "Akwɛ ɔ sɔgbe ǎ. É ɖó ná bǐ kpɛví sɔ flán 100 bɔ ná zɛ flán 500 000 wú ǎ.",
+    "incompris": "Un sè xó towe ganji ǎ. A sixu byɔ solde, frais, budget alǒ sɛ akwɛ.",
+    "idempotence_doublon": "È ko bló transfert é lɔ wá yì."
+  },
+  "hors_sujet": "KwèGbaTché nyí alɔgɔnùmɛtɔ́ Mobile Money tɔn towe. Un sixu d'alɔ we ná kpɔ́n solde, frais, budget alǒ ná sɛ akwɛ."
+}

@@ -1,0 +1,51 @@
+<section class="health-container">
+  <!-- En-tête avec Statut Global -->
+  <div class="health-header">
+    <div>
+      <h1 class="page-title">Santé du Système & Services</h1>
+      <p class="muted small">
+        Télémétrie en temps réel des briques IA et Backend · Actualisation automatique (<span id="refresh-timer">10s</span>)
+      </p>
+    </div>
+    <div id="global-status" class="status-badge up">
+      <span class="status-dot"></span>
+      <span class="status-label">Système Opérationnel</span>
+    </div>
+  </div>
+
+  <!-- Grille des Micro-Services -->
+  <div class="services-grid" id="services-grid">
+    <% 
+      const serviceDetails = {
+        asr: { label: 'ASR (Reconnaissance Vocale)', desc: 'Whisper / MMS fine-tuné (Fon / Yor / Fr)' },
+        nlu: { label: 'NLU (Compréhension)', desc: 'Classifieur d\'intentions & extraction d\'entités' },
+        tts: { label: 'TTS (Synthèse Vocale)', desc: 'VITS / MMS-TTS voix naturelles' },
+        database: { label: 'Base de Données SQLite', desc: 'Transactions atomiques WAL & Idempotence EF-21' }
+      };
+
+      Object.entries(services).forEach(([name, status]) => { 
+        const meta = serviceDetails[name.toLowerCase()] || { label: name.toUpperCase(), desc: 'Composant système' };
+    %>
+      <div class="service-card <%= status === 'up' ? 'status-ok' : 'status-err' %>">
+        <div class="service-card-header">
+          <div class="service-meta">
+            <span class="service-name"><%= meta.label %></span>
+            <span class="service-desc"><%= meta.desc %></span>
+          </div>
+          <span class="status-pill <%= status === 'up' ? 'up' : 'down' %>">
+            <span class="status-dot"></span> <%= status.toUpperCase() %>
+          </span>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+
+  <!-- Barre d'actions -->
+  <div class="actions health-actions">
+    <a href="/" class="btn btn-secondary">← Retour à l'accueil</a>
+    <a href="/demo" class="btn btn-primary">🎙️ Tester la Démo</a>
+    <a href="/api/v1/health" class="btn btn-ghost" target="_blank" rel="noopener">📄 Consulter le JSON brut</a>
+  </div>
+</section>
+
+<script src="/js/health.js"></script>
