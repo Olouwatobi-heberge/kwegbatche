@@ -22,6 +22,8 @@
   let speechRecognition = null;
   let lastAudioElement = null;
   let isProcessing = false;
+  let demoScenario = '';
+  let scenarioPinned = false;
 
   // Éléments DOM
   const langSelect = document.getElementById('langSelect');
@@ -45,6 +47,7 @@
   const sessionTag = document.getElementById('sessionTag');
   const latencyTag = document.getElementById('latencyTag');
   const toggleBalanceBtn = document.getElementById('toggleBalanceBtn');
+  const asrMockLabel = document.getElementById('asrMockLabel');
 
   if (sessionTag) sessionTag.textContent = sessionId.slice(0, 11) + '...';
 
@@ -212,18 +215,27 @@
       return;
     }
 
+    const waiting = confirmationCard && !confirmationCard.classList.contains('hidden');
+    let scenario = demoScenario;
+    if (waiting && !scenarioPinned) scenario = 'confirmer';
+
     const form = new FormData();
     if (blob && blob.size > 0) form.append('audio', blob, 'recording.wav');
     form.append('lang', currentLang);
     form.append('sessionId', sessionId);
     if (cleanSpoken) form.append('text', cleanSpoken);
+    if (scenario) form.append('demo_scenario', scenario);
+
+    demoScenario = '';
+    scenarioPinned = false;
+    document.querySelectorAll('[data-voice]').forEach((chip) => chip.classList.remove('chip-on'));
 
     const data = await apiCall('/api/v1/audio/pipeline', { method: 'POST', body: form });
 
     setLoadingState(false);
     if (micStatusLabel) micStatusLabel.textContent = "Appuyer pour parler";
 
-    const userHeard = data.transcript || cleanSpoken || "Message vocal";
+    const userHeard = data.transcription || data.transcript || cleanSpoken || "Message vocal";
     appendUserMessage(userHeard);
 
     handleDialogResponse(data);
@@ -245,6 +257,9 @@
     if (engineBadge) {
       engineBadge.className = 'badge badge-secours';
       engineBadgeText.textContent = 'Mode Secours (Mock)';
+    }
+    if (asrMockLabel) {
+      asrMockLabel.classList.toggle('hidden', data.asrMock !== true);
     }
 
     const botMsg = data.replyMessage || data.message || data.result?.turn?.message || data.explanation || "Opération terminée.";
@@ -441,6 +456,16 @@
 
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
+      const voice = chip.getAttribute('data-voice');
+      if (voice) {
+        demoScenario = voice;
+        scenarioPinned = true;
+        document.querySelectorAll('[data-voice]').forEach((item) => {
+          item.classList.toggle('chip-on', item === chip);
+        });
+        if (micStatusLabel) micStatusLabel.textContent = 'Scénario prêt. Appuyer pour parler';
+        return;
+      }
       const k = chip.getAttribute('data-scenario');
       if (ACTIONS[k]) ACTIONS[k]();
     });

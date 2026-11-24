@@ -95,8 +95,15 @@ exports.pipeline = async (req, res, next) => {
     };
     const lang = req.body.lang || session.lang || "fon";
 
-    // 1. Étape ASR
-    const asr = await transcribeAudio(req.file.buffer, req.file.mimetype, lang);
+    // 1. Étape ASR (demo_scenario ne sert que si le service est injoignable)
+    const asr = await transcribeAudio(req.file.buffer, req.file.mimetype, lang, {
+      scenario: req.body.demo_scenario,
+      sessionState: session.state,
+      rotationStep: session.mockAsrStep || 0,
+    });
+    if (asr.isMock && typeof asr.nextStep === "number") {
+      session.mockAsrStep = asr.nextStep;
+    }
 
     // 2. Étape NLU (texte -> intention + montant/destinataire)
     session.lang = lang;
