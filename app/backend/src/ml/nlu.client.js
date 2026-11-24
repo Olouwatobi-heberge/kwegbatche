@@ -44,7 +44,7 @@ const FON_NUMBERS = {
   atɔ́ɔ́n: 5000,
   atoon: 5000,
   wo: 10000,
-  ko: 20000,
+  // ko: 20000,
   gbàn: 30000,
   gban: 30000,
   kanɖé: 40000,
@@ -136,7 +136,10 @@ function normalizeText(str) {
 /**
  * Extraction robuste du montant
  */
-function extractAmount(rawText, cleanText) {
+/**
+ * Extraction robuste du montant (Ligne 139)
+ */
+function extractAmount(rawText, cleanText, lang = "fr") {
   // 1. Chiffres explicites (ex: "15000", "5 000 f", "2000 cfa")
   const numMatch = rawText.match(/\b(\d+[\d\s]*)\b/);
   if (numMatch) {
@@ -144,30 +147,36 @@ function extractAmount(rawText, cleanText) {
     if (!isNaN(val) && val > 0) return val;
   }
 
-  // 2. Fongbé : tri par longueur pour matcher les expressions longues en premier
+  // Fonction utilitaire pour tester un mot entier (évite que "ko" matche "koffi")
+  const matchWholeWord = (text, word) => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|\\s)${escaped}(\\s|$)`, "i").test(text);
+  };
+
+  // 2. Si langue Français ou détection de mots français
+  const frKeys = Object.keys(FR_NUMBERS).sort((a, b) => b.length - a.length);
+  for (const k of frKeys) {
+    const normK = normalizeText(k);
+    if (matchWholeWord(cleanText, normK)) {
+      return FR_NUMBERS[k];
+    }
+  }
+
+  // 3. Fongbé : tri par longueur
   const fonKeys = Object.keys(FON_NUMBERS).sort((a, b) => b.length - a.length);
   for (const k of fonKeys) {
     const normK = normalizeText(k);
-    if (cleanText.includes(normK)) {
+    if (matchWholeWord(cleanText, normK)) {
       return FON_NUMBERS[k];
     }
   }
 
-  // 3. Yorùbá
+  // 4. Yorùbá
   const yorKeys = Object.keys(YOR_NUMBERS).sort((a, b) => b.length - a.length);
   for (const k of yorKeys) {
     const normK = normalizeText(k);
-    if (cleanText.includes(normK)) {
+    if (matchWholeWord(cleanText, normK)) {
       return YOR_NUMBERS[k];
-    }
-  }
-
-  // 4. Français
-  const frKeys = Object.keys(FR_NUMBERS).sort((a, b) => b.length - a.length);
-  for (const k of frKeys) {
-    const normK = normalizeText(k);
-    if (cleanText.includes(normK)) {
-      return FR_NUMBERS[k];
     }
   }
 
@@ -260,7 +269,7 @@ async function understandIntent(text, lang = "fr") {
   // =========================================================================
   // NIVEAU 2 : EXTRACTION COMMUNE DES ENTITÉS
   // =========================================================================
-  const extractedAmount = extractAmount(text, clean);
+  const extractedAmount = extractAmount(text, clean, lang);
   const extractedRecipient = extractRecipient(text, clean);
 
   // =========================================================================

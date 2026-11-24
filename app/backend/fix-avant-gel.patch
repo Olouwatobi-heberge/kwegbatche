@@ -1,0 +1,85 @@
+diff --git a/.gitignore b/.gitignore
+index d6ffd47..875e779 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -66,3 +66,7 @@ Thumbs.db
+ .idea/
+ .vscode/
+ *.swp
++
++# Base SQLite locale (regénérée par le seed)
++app/backend/data.sqlite
++app/backend/data.sqlite-*
+diff --git a/app/backend/app.js b/app/backend/app.js
+index 4380eba..d4d6a18 100644
+--- a/app/backend/app.js
++++ b/app/backend/app.js
+@@ -41,6 +41,17 @@ app.use(express.urlencoded({ extended: true }));
+ app.use(express.static(path.join(__dirname, "public"))); // CSS / JS / images
+ app.use(traceMiddleware);
+ 
++// Session en mémoire, clé = en-tête X-Session-Id envoyé par public/js/app.js
++const sessions = new Map();
++app.use((req, res, next) => {
++  const sid = String(req.get("X-Session-Id") || "anon").slice(0, 64);
++  if (!sessions.has(sid)) {
++    sessions.set(sid, { userId: "usr_mama_rosine", lang: "fon", state: "IDLE" });
++  }
++  req.session = sessions.get(sid);
++  next();
++});
++
+ /* ------------------------------------------------------------------ */
+ /*  3. Routes "pages" (HTML rendu via EJS)                             */
+ /* ------------------------------------------------------------------ */
+diff --git a/app/backend/server.js b/app/backend/server.js
+index 2f69b79..1bfac43 100644
+--- a/app/backend/server.js
++++ b/app/backend/server.js
+@@ -1,3 +1,6 @@
++// Charge .env s'il existe (Node >= 20.12), sans dépendance
++try { process.loadEnvFile(require('path').join(__dirname, '.env')); } catch (_) {}
++
+ const app = require('./app');
+ const config = require('./src/config');
+ const logger = require('./src/observability/logger');
+diff --git a/app/backend/src/domain/dialog.machine.js b/app/backend/src/domain/dialog.machine.js
+index 69aad93..d81d67d 100644
+--- a/app/backend/src/domain/dialog.machine.js
++++ b/app/backend/src/domain/dialog.machine.js
+@@ -162,6 +162,7 @@ function processDialogTurn({ currentState = 'IDLE', session = {}, nlu = {}, acti
+     const message = t(lang, 'fees_info', {
+       amount,
+       fee,
++      total: amount + fee,
+       taux: '1%',
+       frais: fee
+     });
+diff --git a/app/backend/src/ml/nlu.client.js b/app/backend/src/ml/nlu.client.js
+index c549323..127089a 100644
+--- a/app/backend/src/ml/nlu.client.js
++++ b/app/backend/src/ml/nlu.client.js
+@@ -383,6 +383,10 @@ const INTENT_TO_MACHINE = {
+   confirmer: "confirmer",
+   annuler: "annuler",
+   hors_sujet: "hors_sujet",
++  // alias : classifieur de Merveille et OpenAPI ML
++  confirmation: "confirmer",
++  demander_frais: "comprendre_frais",
++  hors_domaine: "hors_sujet",
+ };
+ 
+ async function analyzeForDialog(text, lang = "fr") {
+diff --git a/app/backend/src/ml/tts.client.js b/app/backend/src/ml/tts.client.js
+index eab1c80..a5b78a4 100644
+--- a/app/backend/src/ml/tts.client.js
++++ b/app/backend/src/ml/tts.client.js
+@@ -36,7 +36,7 @@ function generateSilentWav() {
+  */
+ async function synthesizeAudio(text, lang = 'fon') {
+   const timer = startTimer('tts');
+-  const ttsUrl = config.ml?.ttsUrl || 'http://127.0.0.1:8000/tts';
++  const ttsUrl = config.mlServices?.ttsUrl || 'http://127.0.0.1:8000/tts';
+   const timeoutMs = config.timeouts?.tts || 4000;
+ 
+   try {
