@@ -280,10 +280,3 @@ Conformément aux exigences non-fonctionnelles **ENF-01 à ENF-05** :
 
 Chaque échange génère un en-tête `X-Trace-Id` répercuté sur l'ensemble des modules pour permettre un débogage unifié lors des démonstrations.
 ```
-
----
-
-### Prochaines actions suggérées :
-1. Copier le bloc Markdown ci-dessus et remplacer le contenu de votre `app/backend/README.md`.
-2. Connecter les contrôleurs finaux dans `src/api/routes/dialog.routes.js` et `src/api/routes/wallet.routes.js`.
-3. Finaliser le connecteur de repli ML (`ml/asr.client.js`, `ml/nlu.client.js`, `ml/tts.client.js`) pour garantir le fonctionnement fluide même si les serveurs GPU externes sont hors ligne.
